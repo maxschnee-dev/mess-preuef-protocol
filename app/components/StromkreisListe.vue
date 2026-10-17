@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { FeldDef } from './StromkreisFeld.vue'
-import { GG_ABSCHALTSTROM_HINWEIS, verstoesseDesProtokolls } from '~/utils/grenzwerte'
+import { GG_ABSCHALTSTROM_HINWEIS, isPruefFeldKey, pruefeFelder, verstoesseDerStromkreise } from '~/utils/grenzwerte'
+import type { PruefFeldKey, Pruefung } from '~/utils/grenzwerte'
 import { addStromkreis, copyPrevious, moveStromkreis, removeStromkreis, updateStromkreis } from '~/utils/stromkreis'
 import type { Stromkreis } from '~/utils/protokoll-store'
 
@@ -46,7 +47,12 @@ function setList(list: Stromkreis[]) {
   if (selected.value) update(selected.value.id, { stromkreise: list })
 }
 const liste = computed(() => selected.value?.stromkreise ?? [])
-const verstoesse = computed(() => verstoesseDesProtokolls({ stromkreise: liste.value, netzspannung: '' }))
+const verstoesse = computed(() => verstoesseDerStromkreise(liste.value))
+// Computed once per Stromkreis; the fields only receive their own result.
+const pruefungen = computed(() => new Map<string, Partial<Record<PruefFeldKey, Pruefung>>>(liste.value.map((s) => [s.id, pruefeFelder(s)])))
+function pruefungFuer(id: string, key: string): Pruefung | undefined {
+  return isPruefFeldKey(key) ? pruefungen.value.get(id)?.[key] : undefined
+}
 const verstossText = (n: number) => `${n} ${n === 1 ? 'Verstoss' : 'Verstösse'}`
 const nrFeld: FeldDef = { key: 'nr', label: 'Nr.' }
 
@@ -76,7 +82,7 @@ function confirmDelete() {
     />
 
     <!-- Mobile / Tablet hochkant: eine Karte pro Stromkreis -->
-    <div class="space-y-4 lg:hidden">
+    <div class="space-y-4 lg:landscape:hidden">
       <UCard v-for="(s, i) in liste" :key="s.id">
         <template #header>
           <div class="flex items-center gap-2">
@@ -98,7 +104,7 @@ function confirmDelete() {
                 v-if="f.key !== 'ueberstromschutzAndere' || s.ueberstromschutzArt === 'andere'"
                 :label="f.label + (f.unit ? ` (${f.unit})` : '')"
               >
-                <StromkreisFeld :stromkreis="s" :feld="f" @update="patch(s.id, $event)" />
+                <StromkreisFeld :stromkreis="s" :feld="f" :pruefung="pruefungFuer(s.id, f.key)" @update="patch(s.id, $event)" />
               </UFormField>
             </template>
           </fieldset>
@@ -107,7 +113,7 @@ function confirmDelete() {
     </div>
 
     <!-- Tablet quer: Tabelle -->
-    <div class="hidden overflow-x-auto lg:block">
+    <div class="hidden overflow-x-auto lg:landscape:block">
       <table class="w-full min-w-[1400px] border-collapse text-sm">
         <thead>
           <tr>
@@ -125,7 +131,7 @@ function confirmDelete() {
           <tr v-for="(s, i) in liste" :key="s.id" class="border-t border-default">
             <td class="w-16 p-1"><StromkreisFeld :stromkreis="s" :feld="nrFeld" @update="patch(s.id, $event)" /></td>
             <td v-for="f in alleFelder" :key="f.key" class="min-w-24 p-1">
-              <StromkreisFeld :stromkreis="s" :feld="f" @update="patch(s.id, $event)" />
+              <StromkreisFeld :stromkreis="s" :feld="f" :pruefung="pruefungFuer(s.id, f.key)" @update="patch(s.id, $event)" />
             </td>
             <td class="whitespace-nowrap p-1">
               <UButton icon="i-lucide-arrow-up" size="xl" variant="ghost" color="neutral" aria-label="Nach oben" :disabled="i === 0" @click="move(s.id, -1)" />

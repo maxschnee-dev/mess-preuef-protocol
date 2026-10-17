@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Stromkreis } from '~/utils/protokoll-store'
-import { pruefeStromkreis } from '~/utils/grenzwerte'
+import type { Pruefung } from '~/utils/grenzwerte'
 import { RCD_ARTEN, UEBERSTROMSCHUTZ_ARTEN } from '~/utils/stromkreis'
 
 export type FeldKey = Exclude<keyof Stromkreis, 'id'>
@@ -12,7 +12,7 @@ export interface FeldDef {
   select?: 'ueberstromschutz' | 'rcd'
 }
 
-const props = defineProps<{ stromkreis: Stromkreis; feld: FeldDef }>()
+const props = defineProps<{ stromkreis: Stromkreis; feld: FeldDef; pruefung?: Pruefung }>()
 const emit = defineEmits<{ update: [patch: Partial<Omit<Stromkreis, 'id'>>] }>()
 
 const items = computed(() => {
@@ -20,7 +20,9 @@ const items = computed(() => {
   return [{ label: '–', value: '' }, ...arten]
 })
 /** Required boundary when this field is a Verstoss (ADR-0003), else undefined. */
-const verstoss = computed(() => (pruefeStromkreis(props.stromkreis) as Record<string, string | undefined>)[props.feld.key])
+const verstoss = computed(() => (props.pruefung && !props.pruefung.ok ? props.pruefung.boundary : null))
+/** Neutral hint (e.g. gG without table value), not a Verstoss. */
+const hinweis = computed(() => (props.pruefung?.nichtGeprueft ? props.pruefung.boundary : null))
 const value = computed(() => props.stromkreis[props.feld.key] as string)
 const ariaLabel = computed(() => `${props.feld.label}${props.feld.unit ? ` (${props.feld.unit})` : ''}, Stromkreis ${props.stromkreis.nr}`)
 
@@ -56,5 +58,6 @@ function set(v: unknown) {
     </template>
   </UInput>
   <p v-if="verstoss" class="mt-1 text-sm font-medium text-error" role="status">{{ verstoss }}</p>
+  <p v-else-if="hinweis" class="mt-1 text-sm text-muted" role="status">{{ hinweis }}</p>
   </div>
 </template>

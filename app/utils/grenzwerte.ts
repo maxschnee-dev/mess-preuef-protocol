@@ -1,4 +1,4 @@
-import type { Stromkreis } from './protokoll-store'
+import type { RcdArt, Stromkreis, UeberstromschutzArt } from './protokoll-store'
 
 /**
  * Grenzwerte (ADR-0003, ADR-0004). The single place for every limit; the rule
@@ -13,11 +13,13 @@ export const GRENZWERTE = {
   /** Leitfähigkeit Schutzleiter in Ω, maximum */
   schutzleiterMax: 1,
   /** Faktor k: I_a = k · I_N for Leitungsschutzschalter */
-  lsFaktor: { 'LS-B': 5, 'LS-C': 10, 'LS-D': 20 } as Record<string, number>,
+  lsFaktor: { 'LS-B': 5, 'LS-C': 10, 'LS-D': 20 } as Partial<Record<UeberstromschutzArt, number>>,
   /** gG: up to this I_N (A) the 0.4 s column applies, above it the 5 s column */
   ggGrenzeSchnell: 32,
   /** RCD-Auslösezeit in ms */
   ausloesezeit: { max: 300, selektiv: { min: 130, max: 500 } },
+  /** RCD-Arten with selective (time-delayed) characteristic */
+  selektiveRcdArten: ['A-S', 'B-S'] as readonly RcdArt[],
   /** Netzspannung in V: allowed ranges (230 V or 400 V system) */
   netzspannung: [
     { min: 207, max: 253 },
@@ -53,6 +55,8 @@ export interface Pruefung {
   ok: boolean
   /** Required boundary text, e.g. "≥ 255 A"; null when nothing was checked. */
   boundary: string | null
+  /** true when a check was not possible for a known reason (neutral hint in `boundary`, never a Verstoss). */
+  nichtGeprueft?: true
 }
 
 const OK: Pruefung = { ok: true, boundary: null }
@@ -68,26 +72,24 @@ function fmt(n: number): string {
   return String(Math.round(n * 100) / 100)
 }
 
-function verstoss(boundary: string): Pruefung {
-  return { ok: false, boundary }
+/** Shared shape of every rule: not measured -> OK; otherwise compare and report the boundary. */
+function vergleiche(wert: number | null, erfuellt: (v: number) => boolean, boundary: string): Pruefung {
+  if (wert === null) return OK
+  return erfuellt(wert) ? { ok: true, boundary } : { ok: false, boundary }
 }
 
 export function pruefeRIso(rIso: string): Pruefung {
-  const v = parseZahl(rIso)
-  if (v === null) return OK
   const min = GRENZWERTE.rIsoMin
-  return v >= min ? { ok: true, boundary: `≥ ${min.toFixed(1)} MΩ` } : verstoss(`≥ ${min.toFixed(1)} MΩ`)
+  return vergleiche(parseZahl(rIso), (v) => v >= min, `≥ ${min.toFixed(1)} MΩ`)
 }
 
 export function pruefeSchutzleiter(schutzleiter: string): Pruefung {
-  const v = parseZahl(schutzleiter)
-  if (v === null) return OK
   const max = GRENZWERTE.schutzleiterMax
-  return v <= max ? { ok: true, boundary: `≤ ${max} Ω` } : verstoss(`≤ ${max} Ω`)
+  return vergleiche(parseZahl(schutzleiter), (v) => v <= max, `≤ ${max} Ω`)
 }
 
 /** Required I_a in A for the Überstromschutz, or null when it cannot be determined (unchecked). */
-export function abschaltstrom(art: string, inText: string): number | null {
+export function abschaltstrom(art: UeberstromschutzArt, inText: string): number | null {
   const iN = parseZahl(inText)
   if (iN === null || iN <= 0) return null
   const k = GRENZWERTE.lsFaktor[art]
@@ -103,42 +105,46 @@ export function abschaltstrom(art: string, inText: string): number | null {
 export function pruefeIkEnde(s: Pick<Stromkreis, 'ueberstromschutzArt' | 'ueberstromschutzIn' | 'ikEnde'>): Pruefung {
   const ik = parseZahl(s.ikEnde)
   const ia = abschaltstrom(s.ueberstromschutzArt, s.ueberstromschutzIn)
-  if (ik === null || ia === null) return OK
-  const boundary = `≥ ${fmt(ia)} A`
-  return ik >= ia ? { ok: true, boundary } : verstoss(boundary)
+  if (ia === null) {
+    const iN = parseZahl(s.ueberstromschutzIn)
+    if (ik !== null && s.ueberstromschutzArt === 'gG' && iN !== null && iN > 0) {
+      return { ok: true, boundary: 'gG ohne Tabellenwert – nicht geprüft', nichtGeprueft: true }
+    }
+    return OK
+  }
+  return vergleiche(ik, (v) => v >= ia, `≥ ${fmt(ia)} A`)
 }
 
 export function pruefeIkAnfang(s: Pick<Stromkreis, 'ikAnfang' | 'ikEnde'>): Pruefung {
-  const anfang = parseZahl(s.ikAnfang)
   const ende = parseZahl(s.ikEnde)
-  if (anfang === null || ende === null) return OK
-  const boundary = `≥ ${fmt(ende)} A (I_K Ende)`
-  return anfang >= ende ? { ok: true, boundary } : verstoss(boundary)
+  if (ende === null) return OK
+  return vergleiche(parseZahl(s.ikAnfang), (v) => v >= ende, `≥ ${fmt(ende)} A (I_K Ende)`)
 }
 
 export function pruefeAusloesezeit(s: Pick<Stromkreis, 'rcdArt' | 'ausloesezeit'>): Pruefung {
   const t = parseZahl(s.ausloesezeit)
-  if (t === null) return OK
   const g = GRENZWERTE.ausloesezeit
-  if (s.rcdArt.endsWith('-S')) {
-    const boundary = `${g.selektiv.min}–${g.selektiv.max} ms`
-    return t >= g.selektiv.min && t <= g.selektiv.max ? { ok: true, boundary } : verstoss(boundary)
+  if (GRENZWERTE.selektiveRcdArten.includes(s.rcdArt)) {
+    return vergleiche(t, (v) => v >= g.selektiv.min && v <= g.selektiv.max, `${g.selektiv.min}–${g.selektiv.max} ms`)
   }
-  const boundary = `≤ ${g.max} ms`
-  return t <= g.max ? { ok: true, boundary } : verstoss(boundary)
+  return vergleiche(t, (v) => v <= g.max, `≤ ${g.max} ms`)
 }
 
+/** Free text such as "230 V" or "230/400 V": every number must fall into one of the allowed ranges. */
 export function pruefeNetzspannung(text: string): Pruefung {
-  // Free text such as "230 V": use the first number.
-  const m = /\d+(?:[.,]\d+)?/.exec(text ?? '')
-  const v = m ? parseZahl(m[0]) : null
-  if (v === null) return OK
+  const zahlen = (text ?? '').match(/\d+(?:[.,]\d+)?/g)?.map((z) => parseZahl(z)).filter((z): z is number => z !== null) ?? []
   const boundary = GRENZWERTE.netzspannung.map((r) => `${r.min}–${r.max} V`).join(' oder ')
-  return GRENZWERTE.netzspannung.some((r) => v >= r.min && v <= r.max) ? { ok: true, boundary } : verstoss(boundary)
+  if (zahlen.length === 0) return OK
+  const imBereich = (v: number) => GRENZWERTE.netzspannung.some((r) => v >= r.min && v <= r.max)
+  return { ok: zahlen.every(imBereich), boundary }
 }
 
 /** Fields of a Stromkreis that have a Grenzwert. */
 export type PruefFeldKey = 'schutzleiter' | 'rIso' | 'ikAnfang' | 'ikEnde' | 'ausloesezeit'
+const PRUEF_FELD_KEYS: readonly string[] = ['schutzleiter', 'rIso', 'ikAnfang', 'ikEnde', 'ausloesezeit']
+export function isPruefFeldKey(key: string): key is PruefFeldKey {
+  return PRUEF_FELD_KEYS.includes(key)
+}
 
 /** Per-field full result (ok + boundary); boundary also set when ok, for display of the limit. */
 export function pruefeFelder(s: Stromkreis): Partial<Record<PruefFeldKey, Pruefung>> {
@@ -169,18 +175,23 @@ export interface Verstoesse {
   netzspannung: string | null
 }
 
-export function verstoesseDesProtokolls(p: { stromkreise: Stromkreis[]; netzspannung: string }): Verstoesse {
+/** Verstösse of the Stromkreise only (no Netzspannung). */
+export function verstoesseDerStromkreise(stromkreise: Stromkreis[]): Pick<Verstoesse, 'anzahl' | 'proStromkreis'> {
   const proStromkreis: Record<string, number> = {}
   let anzahl = 0
-  for (const s of p.stromkreise) {
+  for (const s of stromkreise) {
     const n = Object.keys(pruefeStromkreis(s)).length
     if (n > 0) {
       proStromkreis[s.id] = n
       anzahl += n
     }
   }
+  return { anzahl, proStromkreis }
+}
+
+export function verstoesseDesProtokolls(p: { stromkreise: Stromkreis[]; netzspannung: string }): Verstoesse {
+  const { anzahl, proStromkreis } = verstoesseDerStromkreise(p.stromkreise)
   const netz = pruefeNetzspannung(p.netzspannung)
   const netzspannung = netz.ok ? null : netz.boundary
-  if (netzspannung) anzahl += 1
-  return { anzahl, proStromkreis, netzspannung }
+  return { anzahl: anzahl + (netzspannung ? 1 : 0), proStromkreis, netzspannung }
 }
