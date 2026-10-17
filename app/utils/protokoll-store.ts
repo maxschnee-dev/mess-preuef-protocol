@@ -3,6 +3,7 @@
  * Everything lives under ONE localStorage key so writes are atomic.
  */
 
+import { isGesperrt, isSignatureComplete, leereSignaturen, signPatch, unlockPatch, type Signatur, type Signaturen, type Unterzeichner } from './signaturen'
 import { createProtokollForm, withFormDefaults, type ProtokollForm } from './protokoll-form'
 
 export const SCHEMA_VERSION = 1
@@ -28,6 +29,10 @@ export interface Protokoll extends ProtokollForm {
   kontrolldatum: string
   ortDerInstallation: string
   stromkreise: Stromkreis[]
+  /** Finger signatures (#8) */
+  signaturen: Signaturen
+  /** true once signed: the whole Protokoll is read-only (store guard + UI) */
+  gesperrt: boolean
 }
 
 export interface BackupData {
@@ -49,7 +54,7 @@ function newId(): string {
 }
 
 export function createProtokoll(): Protokoll {
-  return { schemaVersion: SCHEMA_VERSION, id: newId(), kontrolldatum: '', ortDerInstallation: '', stromkreise: [], ...createProtokollForm() }
+  return { schemaVersion: SCHEMA_VERSION, id: newId(), kontrolldatum: '', ortDerInstallation: '', stromkreise: [], signaturen: leereSignaturen(), gesperrt: false, ...createProtokollForm() }
 }
 
 /** "01.10.2026 · Bern" */
@@ -112,8 +117,26 @@ export function createProtokollStore(storage: KeyValueStorage) {
       commit()
       return p
     },
-    update(id: string, patch: Partial<Omit<Protokoll, 'id' | 'schemaVersion'>>) {
+    /** Returns false (and changes nothing) if the Protokoll is locked or unknown. Use sign/unlock for the lock. */
+    update(id: string, patch: Partial<Omit<Protokoll, 'id' | 'schemaVersion' | 'signaturen' | 'gesperrt'>>): boolean {
+      const target = data.protokolle.find((p) => p.id === id)
+      if (!target || isGesperrt(target)) return false
       data.protokolle = data.protokolle.map((p) => (p.id === id ? { ...p, ...patch } : p))
+      commit()
+      return true
+    },
+    /** Stores the signature and locks the Protokoll. False if unknown or no drawing. */
+    sign(id: string, who: Unterzeichner, signatur: Signatur): boolean {
+      const target = data.protokolle.find((p) => p.id === id)
+      if (!target || !isSignatureComplete(signatur)) return false
+      data.protokolle = data.protokolle.map((p) => (p.id === id ? { ...p, ...signPatch(p, who, signatur) } : p))
+      commit()
+      return true
+    },
+    /** Clears both signatures and unlocks (UI must ask first). */
+    unlock(id: string) {
+      if (!data.protokolle.some((p) => p.id === id)) return
+      data.protokolle = data.protokolle.map((p) => (p.id === id ? { ...p, ...unlockPatch() } : p))
       commit()
     },
     select(id: string) {
@@ -124,7 +147,7 @@ export function createProtokollStore(storage: KeyValueStorage) {
     duplicate(id: string): Protokoll | null {
       const src = data.protokolle.find((p) => p.id === id)
       if (!src) return null
-      const copy: Protokoll = { ...structuredClone(src), id: newId() }
+      const copy: Protokoll = { ...structuredClone(src), id: newId(), ...unlockPatch() }
       data.protokolle = [...data.protokolle, copy]
       data.selectedId = copy.id
       commit()
