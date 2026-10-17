@@ -4,6 +4,7 @@ import {
   setAlleSichtpruefungIo,
 } from '~/utils/protokoll-form'
 import type { Partei } from '~/utils/protokoll-form'
+import { verstoesseDesProtokolls } from '~/utils/grenzwerte'
 import type { Company } from '~/utils/protokoll-store'
 import { planFill, suggest } from '~/utils/stammdaten'
 
@@ -28,6 +29,10 @@ function pickMessgeraet(i: number, name: string) {
   fokus.value = null
 }
 const SCHUTZ_ITEMS: string[] = [...SCHUTZ_SYSTEME]
+const verstoesse = computed(() =>
+  selected.value ? verstoesseDesProtokolls(selected.value) : { anzahl: 0, proStromkreis: {}, netzspannung: null },
+)
+const verstossText = (n: number) => `${n} ${n === 1 ? 'Verstoss' : 'Verstösse'}`
 
 type Section = 'installation' | 'kontrolle'
 
@@ -188,7 +193,8 @@ const alleIoChecked = computed(() => !!selected.value && SICHTPRUEFUNG_ITEMS.eve
           @update:model-value="setCheck('funktionspruefung', i.key, $event)"
         />
         <UFormField label="Gemessene Netzspannung" class="pt-2">
-          <UInput :model-value="selected.netzspannung" inputmode="decimal" placeholder="z. B. 230 V" class="w-full" @update:model-value="setText('netzspannung', $event)" />
+          <UInput :model-value="selected.netzspannung" inputmode="decimal" placeholder="z. B. 230 V" class="w-full" :color="verstoesse.netzspannung ? 'error' : undefined" :highlight="!!verstoesse.netzspannung" @update:model-value="setText('netzspannung', $event)" />
+          <p v-if="verstoesse.netzspannung" class="mt-1 text-sm font-medium text-error" role="status">{{ verstoesse.netzspannung }}</p>
         </UFormField>
       </div>
     </UCard>
@@ -230,6 +236,14 @@ const alleIoChecked = computed(() => !!selected.value && SICHTPRUEFUNG_ITEMS.eve
     <UCard>
       <template #header><h2 class="font-semibold">Prüfergebnis</h2></template>
       <UCheckbox :model-value="selected.pruefergebnis.keineMaengel" label="Keine Mängel festgestellt" @update:model-value="setKeineMaengel" />
+      <UAlert
+        v-if="selected.pruefergebnis.keineMaengel && verstoesse.anzahl"
+        class="mt-3"
+        color="warning"
+        variant="subtle"
+        icon="i-lucide-triangle-alert"
+        :title="`${verstossText(verstoesse.anzahl)} offen, obwohl «Keine Mängel festgestellt» angekreuzt ist.`"
+      />
     </UCard>
   </div>
 </template>
