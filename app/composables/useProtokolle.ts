@@ -1,5 +1,6 @@
 import { collectCompanies, collectMessgeraete } from '~/utils/stammdaten'
 import { createProtokollStore, type ProtokollStore } from '~/utils/protokoll-store'
+import { isGesperrt, type Signatur, type Unterzeichner } from '~/utils/signaturen'
 
 let store: ProtokollStore | undefined
 
@@ -36,6 +37,10 @@ export function useProtokolle() {
     create: () => (syncStammdaten(), s.create()),
     select: (id: string) => (syncStammdaten(), s.select(id)),
     update: (id: string, patch: Parameters<ProtokollStore['update']>[1]) => s.update(id, patch),
+    /** true when the selected Protokoll is signed/locked: disable inputs with this. */
+    isLocked: computed(() => (revision.value, isGesperrt(s.selected))),
+    sign: (id: string, who: Unterzeichner, signatur: Signatur) => s.sign(id, who, signatur),
+    unlock: (id: string) => s.unlock(id),
     duplicate: (id: string) => (syncStammdaten(), s.duplicate(id)),
     remove: (id: string) => (syncStammdaten(), s.remove(id)),
     exportJson: () => (syncStammdaten(), s.exportJson()),
