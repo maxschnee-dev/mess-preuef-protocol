@@ -10,6 +10,7 @@ onMounted(requestPersistence)
       <h1 class="text-2xl font-semibold">Mess- + Prüfprotokoll</h1>
       <ProtokollSwitcher />
       <ProtokollKopf />
+      <ProtokollFormular />
       <BackupPanel />
     </UContainer>
   </UApp>

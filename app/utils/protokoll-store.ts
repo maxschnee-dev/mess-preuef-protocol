@@ -3,6 +3,8 @@
  * Everything lives under ONE localStorage key so writes are atomic.
  */
 
+import { createProtokollForm, withFormDefaults, type ProtokollForm } from './protokoll-form'
+
 export const SCHEMA_VERSION = 1
 export const STORAGE_KEY = 'mpp:v1:state'
 
@@ -19,7 +21,7 @@ export interface Messgeraet {
   name: string
 }
 
-export interface Protokoll {
+export interface Protokoll extends ProtokollForm {
   schemaVersion: number
   id: string
   /** ISO date (YYYY-MM-DD) or '' */
@@ -47,7 +49,7 @@ function newId(): string {
 }
 
 export function createProtokoll(): Protokoll {
-  return { schemaVersion: SCHEMA_VERSION, id: newId(), kontrolldatum: '', ortDerInstallation: '', stromkreise: [] }
+  return { schemaVersion: SCHEMA_VERSION, id: newId(), kontrolldatum: '', ortDerInstallation: '', stromkreise: [], ...createProtokollForm() }
 }
 
 /** "01.10.2026 · Bern" */
@@ -63,7 +65,7 @@ function parseBackup(json: string): BackupData {
     throw new Error('Ungültige Sicherungsdatei')
   }
   // Migrations from older schemaVersions go here.
-  const protokolle = raw.protokolle.map((p) => ({ ...createProtokoll(), ...p }))
+  const protokolle = raw.protokolle.map((p) => withFormDefaults({ ...createProtokoll(), ...p }))
   const selectedId = protokolle.some((p) => p.id === raw.selectedId) ? raw.selectedId! : (protokolle[0]?.id ?? null)
   return {
     schemaVersion: SCHEMA_VERSION,
