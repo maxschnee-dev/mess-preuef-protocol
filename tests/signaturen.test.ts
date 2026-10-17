@@ -30,6 +30,17 @@ describe('Signaturen und Sperre', () => {
     expect(isGesperrt(store.selected)).toBe(true)
   })
 
+  it('allows the second signature while locked and stays locked', () => {
+    const store = createProtokollStore(fakeStorage())
+    const p = store.create()
+    store.sign(p.id, 'kontrolleur', sig)
+    const zweite = { ...sig, name: 'Erika Beispiel' }
+    expect(store.sign(p.id, 'unternehmer', zweite)).toBe(true)
+    expect(store.selected!.gesperrt).toBe(true)
+    expect(store.selected!.signaturen.kontrolleur).toEqual(sig)
+    expect(store.selected!.signaturen.unternehmer).toEqual(zweite)
+  })
+
   it('refuses a signature without drawing', () => {
     const store = createProtokollStore(fakeStorage())
     const p = store.create()
