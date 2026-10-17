@@ -24,14 +24,16 @@ export const STAMM_REIHENFOLGE: readonly StammKey[] = ['leiterAnzahl', 'leiterQu
 export const MESSWERT_REIHENFOLGE: readonly MesswertKey[] = ['schutzleiter', 'rIso', 'iLeck', 'ikAnfang', 'ikEnde', 'ausloesezeit']
 
 export const FELD_INFO: Record<StammKey | MesswertKey | 'netzspannung', FeldInfo> = {
+  // Comma decimals, like the keypad's comma key
+
   leiterAnzahl: { label: 'Leiteranzahl', unit: '', schnellwerte: ['3', '5'] },
-  leiterQuerschnitt: { label: 'Querschnitt', unit: 'mm²', schnellwerte: ['1.5', '2.5', '4', '6', '10', '16'] },
+  leiterQuerschnitt: { label: 'Querschnitt', unit: 'mm²', schnellwerte: ['1,5', '2,5', '4', '6', '10', '16'] },
   ueberstromschutzIn: { label: 'Überstromschutz I_N', unit: 'A', schnellwerte: ['6', '10', '13', '16', '20', '25', '32', '40', '63'] },
   rcdIn: { label: 'RCD I_N', unit: 'A', schnellwerte: ['25', '40', '63'] },
   rcdIdn: { label: 'RCD I_ΔN', unit: 'mA', schnellwerte: ['10', '30', '300'] },
-  schutzleiter: { label: 'Schutzleiter', unit: 'Ω', schnellwerte: ['<0.1'] },
+  schutzleiter: { label: 'Schutzleiter', unit: 'Ω', schnellwerte: ['<0,1'] },
   rIso: { label: 'R_ISO', unit: 'MΩ', schnellwerte: ['>500', '>999'] },
-  iLeck: { label: 'I_Leck', unit: 'mA', schnellwerte: ['<0.1'] },
+  iLeck: { label: 'I_Leck', unit: 'mA', schnellwerte: ['<0,1'] },
   ikAnfang: { label: 'I_K Anfang', unit: 'A', schnellwerte: [] },
   ikEnde: { label: 'I_K Ende', unit: 'A', schnellwerte: [] },
   ausloesezeit: { label: 'Auslösezeit', unit: 'ms', schnellwerte: [] },

@@ -7,10 +7,10 @@ const st = (id: string, key: string) => ({ kind: 'stamm', id, key }) as KeypadTa
 describe('Schnellwerte', () => {
   it('match the spec', () => {
     expect(FELD_INFO.rIso.schnellwerte).toEqual(['>500', '>999'])
-    expect(FELD_INFO.schutzleiter.schnellwerte).toEqual(['<0.1'])
-    expect(FELD_INFO.iLeck.schnellwerte).toEqual(['<0.1'])
+    expect(FELD_INFO.schutzleiter.schnellwerte).toEqual(['<0,1'])
+    expect(FELD_INFO.iLeck.schnellwerte).toEqual(['<0,1'])
     expect(FELD_INFO.leiterAnzahl.schnellwerte).toEqual(['3', '5'])
-    expect(FELD_INFO.leiterQuerschnitt.schnellwerte).toEqual(['1.5', '2.5', '4', '6', '10', '16'])
+    expect(FELD_INFO.leiterQuerschnitt.schnellwerte).toEqual(['1,5', '2,5', '4', '6', '10', '16'])
     expect(FELD_INFO.ueberstromschutzIn.schnellwerte).toEqual(['6', '10', '13', '16', '20', '25', '32', '40', '63'])
     expect(FELD_INFO.rcdIn.schnellwerte).toEqual(['25', '40', '63'])
     expect(FELD_INFO.rcdIdn.schnellwerte).toEqual(['10', '30', '300'])
