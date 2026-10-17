@@ -87,3 +87,15 @@ export const RCD_ARTEN: { value: Exclude<Stromkreis['rcdArt'], ''>; label: strin
   { value: 'B-S', label: 'B-S' },
   { value: 'andere', label: 'Andere' },
 ]
+
+/** Route param "3" -> index 2; anything that is not a positive integer -> null. */
+export function parseStromkreisNr(param: unknown): number | null {
+  const s = Array.isArray(param) ? param[0] : param
+  return typeof s === 'string' && /^[1-9]\d*$/.test(s) ? Number(s) - 1 : null
+}
+
+/** Index to show for a requested one: clamped into the list, first when missing/invalid, null for an empty list. */
+export function clampIndex(index: number | null, length: number): number | null {
+  if (length === 0) return null
+  return index === null ? 0 : Math.min(Math.max(index, 0), length - 1)
+}

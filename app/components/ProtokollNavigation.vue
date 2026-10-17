@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { isStepKey, neighbours, stepPath } from '~/utils/steps'
+import { neighbours, stepFromPath, stepPath } from '~/utils/steps'
 
 defineProps<{ protokollId: string }>()
 const route = useRoute()
-const aktiv = computed(() => route.path.split('/').filter(Boolean).pop())
-const nb = computed(() => (isStepKey(aktiv.value) ? neighbours(aktiv.value) : { prev: null, next: null }))
+const aktiv = computed(() => stepFromPath(route.path))
+const nb = computed(() => (aktiv.value ? neighbours(aktiv.value) : { prev: null, next: null }))
 </script>
 
 <template>

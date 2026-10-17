@@ -16,3 +16,12 @@ export function neighbours(key: StepKey): { prev: StepKey | null; next: StepKey 
 }
 
 export const stepPath = (id: string, key: StepKey) => `/protokoll/${id}/${key}`
+
+/** Step key of a `/protokoll/<id>/<step>[/...]` path (sub-routes like `/stromkreise/2` count as their step). */
+export function stepFromPath(path: string): StepKey | null {
+  const key = path.match(/^\/protokoll\/[^/]+\/([^/?#]+)/)?.[1]
+  return isStepKey(key) ? key : null
+}
+
+/** Route of one Stromkreis; `nr` is its 1-based position in the list. */
+export const stromkreisPath = (id: string, nr: number) => `${stepPath(id, 'stromkreise')}/${nr}`

@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { STEPS, stepPath } from '~/utils/steps'
+import { STEPS, stepFromPath, stepPath } from '~/utils/steps'
 
 defineProps<{ protokollId: string }>()
 const route = useRoute()
-const aktiv = computed(() => route.path.split('/').filter(Boolean).pop())
+const aktiv = computed(() => stepFromPath(route.path))
 const linkClass = (active: boolean) => [
   'flex min-h-11 items-center rounded-sm px-3 text-base whitespace-nowrap',
   active ? 'bg-tl-blue-fill font-bold text-ink ring-2 ring-inset ring-ink' : 'font-medium hover:bg-elevated',
