@@ -48,6 +48,8 @@ export default defineNuxtConfig({
       globPatterns: ['**/*.{js,css,html,png,svg,ico,webmanifest,woff2}'],
       navigateFallback: baseURL,
       cleanupOutdatedCaches: true,
+      // lazy pdfmake chunks (library + bundled Roboto) exceed workbox's 2 MiB default but must work offline (#9)
+      maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
       // Nuxt's 200/404 fallback pages get precached as extensionless URLs a static host may 404, failing the SW install.
       globIgnores: ['200.html', '404.html'],
     },

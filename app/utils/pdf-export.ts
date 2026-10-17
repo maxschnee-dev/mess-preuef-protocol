@@ -1,0 +1,39 @@
+/**
+ * Thin, untested rendering/sharing layer around pdfmake (ADR-0002). pdfmake and its bundled Roboto
+ * fonts are lazy-loaded on first export so the main bundle stays small; both chunks are precached
+ * by the service worker, so export works offline. Export is never blocked by Verstoesse or missing
+ * signatures (ADR-0003).
+ */
+import { buildDocDefinition, pdfFilename, type PdfOptions } from './pdf-doc'
+import type { Protokoll } from './protokoll-store'
+
+export async function renderPdf(p: Protokoll, options: PdfOptions = {}): Promise<Blob> {
+  const [{ default: pdfMake }, { default: vfs }] = await Promise.all([
+    import('pdfmake/build/pdfmake'),
+    import('pdfmake/build/vfs_fonts'),
+  ])
+  pdfMake.addVirtualFileSystem(vfs)
+  return pdfMake.createPdf(buildDocDefinition(p, options)).getBlob()
+}
+
+/** Shares the PDF through the Web Share API where file sharing is supported, else downloads it. */
+export async function exportPdf(p: Protokoll, options: PdfOptions = {}): Promise<'shared' | 'downloaded' | 'cancelled'> {
+  const blob = await renderPdf(p, options)
+  const name = pdfFilename(p)
+  const file = new File([blob], name, { type: 'application/pdf' })
+  if (typeof navigator !== 'undefined' && navigator.canShare?.({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], title: name })
+      return 'shared'
+    } catch (e) {
+      if (e instanceof DOMException && e.name === 'AbortError') return 'cancelled'
+      // any other share failure: fall through to the download
+    }
+  }
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(blob)
+  a.download = name
+  a.click()
+  setTimeout(() => URL.revokeObjectURL(a.href), 10_000)
+  return 'downloaded'
+}
