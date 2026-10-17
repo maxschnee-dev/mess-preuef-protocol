@@ -11,6 +11,7 @@ onMounted(requestPersistence)
       <ProtokollSwitcher />
       <ProtokollKopf />
       <ProtokollFormular />
+      <StromkreisListe />
       <BackupPanel />
     </UContainer>
   </UApp>
