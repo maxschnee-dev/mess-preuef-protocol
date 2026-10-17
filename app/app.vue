@@ -13,6 +13,7 @@ onMounted(requestPersistence)
       <fieldset :disabled="isLocked" class="min-w-0 space-y-4">
         <ProtokollKopf />
         <ProtokollFormular />
+        <StromkreisListe />
       </fieldset>
       <SignaturenPanel />
       <BackupPanel />
