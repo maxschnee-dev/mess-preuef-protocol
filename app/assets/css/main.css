@@ -1,2 +1,68 @@
 @import "tailwindcss";
 @import "@nuxt/ui";
+
+/* Light palette (tldraw-derived): `*` = stroke colour, `*-fill` = what tldraw paints for fill: solid */
+@theme static {
+  --color-ink: #1d1d1d;
+  --color-ink-fill: #e8e8e8;
+  --color-tl-blue: #4465e9;
+  --color-tl-blue-fill: #dce1f8;
+  --color-tl-light-blue: #4ba1f1;
+  --color-tl-light-blue-fill: #ddedfa;
+  --color-tl-green: #099268;
+  --color-tl-green-fill: #d3e9e3;
+  --color-tl-red: #e03131;
+  --color-tl-red-fill: #f4dadb;
+  --color-tl-orange: #e16919;
+  --color-tl-orange-fill: #f8e2d4;
+  --color-tl-violet: #ae3ec9;
+  --color-tl-violet-fill: #ecdcf2;
+  --color-tl-grey: #9fa8b2;
+  --color-tl-grey-fill: #eceef0;
+}
+
+/* Light mode only (colorMode is off in nuxt.config). Unlayered, so it wins over Nuxt UI's `@layer theme` defaults. */
+:root {
+  --ui-radius: 0.125rem;
+
+  --ui-primary: var(--color-tl-blue);
+  --ui-secondary: var(--color-tl-violet);
+  --ui-success: var(--color-tl-green);
+  --ui-info: var(--color-tl-light-blue);
+  --ui-warning: var(--color-tl-orange);
+  --ui-error: var(--color-tl-red);
+
+  --ui-text-dimmed: #6b7280;
+  --ui-text-muted: #4b5058;
+  --ui-text-toned: #2f3237;
+  --ui-text: var(--color-ink);
+  --ui-text-highlighted: var(--color-ink);
+  --ui-text-inverted: #fff;
+
+  --ui-bg: #fff;
+  --ui-bg-muted: #f9fafb;
+  --ui-bg-elevated: var(--color-tl-grey-fill);
+  --ui-bg-accented: var(--color-ink-fill);
+  --ui-bg-inverted: var(--color-ink);
+
+  --ui-border: var(--color-ink);
+  --ui-border-muted: var(--color-tl-grey);
+  --ui-border-accented: var(--color-ink);
+  --ui-border-inverted: var(--color-ink);
+}
+
+@layer base {
+  body {
+    @apply bg-white text-ink;
+  }
+
+  h1, h2, h3, legend {
+    letter-spacing: -0.01em;
+  }
+}
+
+/* Keypad bottom sheet (#15) is open: keep the page scrollable above it (height set by KeypadSheet). */
+html.keypad-open {
+  padding-bottom: var(--keypad-h, 24rem);
+  scroll-padding-bottom: calc(var(--keypad-h, 24rem) + 0.5rem);
+}

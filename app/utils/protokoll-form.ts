@@ -92,7 +92,7 @@ export interface ProtokollForm {
   anlageteile: AnlageteilZeile[]
   sichtpruefung: Sichtpruefung
   funktionspruefung: Funktionspruefung
-  /** Gemessene Netzspannung, free text (e.g. "230/400 V") */
+  /** Gemessene Netzspannung, single value in V (e.g. "230") */
   netzspannung: string
   bemerkungen: string
   /** names of the Messgeräte used */

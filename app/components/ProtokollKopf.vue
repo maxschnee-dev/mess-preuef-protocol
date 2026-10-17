@@ -13,5 +13,4 @@ const { selected, update } = useProtokolle()
       </UFormField>
     </div>
   </UCard>
-  <p v-else class="text-muted">Noch kein Protokoll vorhanden. Mit «Neu» ein Protokoll anlegen.</p>
 </template>

@@ -3,6 +3,7 @@ import { createStromkreis } from '../app/utils/stromkreis'
 import {
   parseZahl,
   pruefeAusloesezeit,
+  grenzwertText,
   pruefeIkAnfang,
   pruefeIkEnde,
   pruefeNetzspannung,
@@ -18,6 +19,12 @@ function sk(patch: Record<string, string>) {
 }
 
 describe('parseZahl', () => {
+  it('ignores a leading < or > (Schnellwert)', () => {
+    expect(parseZahl('>500')).toBe(500)
+    expect(parseZahl('< 0.1')).toBe(0.1)
+    expect(parseZahl('>')).toBeNull()
+    expect(parseZahl('5>')).toBeNull()
+  })
   it('parses dot and comma decimals, rejects empty/garbage', () => {
     expect(parseZahl('0,5')).toBe(0.5)
     expect(parseZahl(' 1.25 ')).toBe(1.25)
@@ -100,24 +107,29 @@ describe('Auslösezeit', () => {
   it('empty ok', () => expect(pruefeAusloesezeit(sk({ rcdArt: 'A', ausloesezeit: '' })).ok).toBe(true))
 })
 
-describe('Netzspannung 207-253 V or 360-440 V', () => {
-  it.each([['207', true], ['253', true], ['206', false], ['254', false], ['360', true], ['440', true], ['359', false], ['441', false], ['300', false]])(
+describe('Netzspannung L–N 207-253 V', () => {
+  it.each([['207', true], ['253', true], ['206', false], ['254', false], ['400', false], ['360', false]])(
     '%s V -> %s',
     (v, ok) => expect(pruefeNetzspannung(v as string).ok).toBe(ok),
   )
-  it('parses free text and commas', () => {
-    expect(pruefeNetzspannung('230 V').ok).toBe(true)
-    expect(pruefeNetzspannung('253,5 V')).toEqual({ ok: false, boundary: '207–253 V oder 360–440 V' })
+  it('parses commas and Schnellwert-style prefixes', () => {
+    expect(pruefeNetzspannung('230,5').ok).toBe(true)
+    expect(pruefeNetzspannung('253,5')).toEqual({ ok: false, boundary: '207–253 V' })
+    expect(pruefeNetzspannung('>230').ok).toBe(true)
   })
-  it('checks every number in the text', () => {
-    expect(pruefeNetzspannung('230/400 V').ok).toBe(true)
-    expect(pruefeNetzspannung('400 / 230 V').ok).toBe(true)
-    expect(pruefeNetzspannung('230/500 V')).toEqual({ ok: false, boundary: '207–253 V oder 360–440 V' })
-    expect(pruefeNetzspannung('300 V, 230 V').ok).toBe(false)
+  it('old free-text entries are a Verstoss', () => {
+    expect(pruefeNetzspannung('230/400 V')).toEqual({ ok: false, boundary: '207–253 V' })
+    expect(pruefeNetzspannung('230 V').ok).toBe(false)
   })
-  it('empty or unparsable is not a Verstoss', () => {
-    expect(pruefeNetzspannung('').ok).toBe(true)
-    expect(pruefeNetzspannung('n/a').ok).toBe(true)
+  it('empty is not a Verstoss', () => expect(pruefeNetzspannung('').ok).toBe(true))
+})
+
+describe('grenzwertText', () => {
+  it('gives the limit without a value, null without a Grenzwert', () => {
+    const s = sk({ ueberstromschutzArt: 'LS-B', ueberstromschutzIn: '16' })
+    expect(grenzwertText(s, 'rIso')).toBe('≥ 1.0 MΩ')
+    expect(grenzwertText(s, 'ikEnde')).toBe('≥ 80 A')
+    expect(grenzwertText(sk({}), 'ikEnde')).toBeNull()
   })
 })
 
@@ -133,7 +145,7 @@ describe('pruefeStromkreis / verstoesseDesProtokolls', () => {
     const v = verstoesseDesProtokolls(p)
     expect(v.anzahl).toBe(4)
     expect(v.proStromkreis[p.stromkreise[2]!.id]).toBe(2)
-    expect(v.netzspannung).toBe('207–253 V oder 360–440 V')
+    expect(v.netzspannung).toBe('207–253 V')
   })
 })
 

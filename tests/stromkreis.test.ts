@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { addStromkreis, copyPrevious, moveStromkreis, removeStromkreis, updateStromkreis } from '../app/utils/stromkreis'
+import { addStromkreis, clampIndex, copyPrevious, moveStromkreis, parseStromkreisNr, removeStromkreis, updateStromkreis } from '../app/utils/stromkreis'
 
 function three() {
   return addStromkreis(addStromkreis(addStromkreis([])))
@@ -77,5 +77,20 @@ describe('copyPrevious', () => {
   })
   it('adds an empty Stromkreis when there is none to copy', () => {
     expect(copyPrevious([])).toHaveLength(1)
+  })
+})
+
+describe('Stromkreis navigation', () => {
+  it('parses the route param to an index', () => {
+    expect(parseStromkreisNr('1')).toBe(0)
+    expect(parseStromkreisNr(['3'])).toBe(2)
+    for (const bad of ['0', '-1', 'x', '1.5', '', undefined]) expect(parseStromkreisNr(bad)).toBeNull()
+  })
+  it('clamps the index into the list', () => {
+    expect(clampIndex(null, 3)).toBe(0)
+    expect(clampIndex(1, 3)).toBe(1)
+    expect(clampIndex(9, 3)).toBe(2)
+    expect(clampIndex(0, 0)).toBeNull()
+    expect(clampIndex(null, 0)).toBeNull()
   })
 })

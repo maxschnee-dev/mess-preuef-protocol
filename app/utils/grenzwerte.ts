@@ -20,11 +20,8 @@ export const GRENZWERTE = {
   ausloesezeit: { max: 300, selektiv: { min: 130, max: 500 } },
   /** RCD-Arten with selective (time-delayed) characteristic */
   selektiveRcdArten: ['A-S', 'B-S'] as readonly RcdArt[],
-  /** Netzspannung in V: allowed ranges (230 V or 400 V system) */
-  netzspannung: [
-    { min: 207, max: 253 },
-    { min: 360, max: 440 },
-  ],
+  /** Netzspannung L–N in V: allowed range (230 V system) */
+  netzspannung: { min: 207, max: 253 },
 } as const
 
 /**
@@ -61,9 +58,12 @@ export interface Pruefung {
 
 const OK: Pruefung = { ok: true, boundary: null }
 
-/** Parses "0,5" / "0.5"; empty or non-numeric -> null (= not measured). */
+/**
+ * Parses "0,5" / "0.5"; empty or non-numeric -> null (= not measured).
+ * A leading "<" / ">" (Schnellwert such as ">500", "< 0,1") is ignored: checked as the number itself.
+ */
 export function parseZahl(text: string | undefined | null): number | null {
-  const t = (text ?? '').trim().replace(',', '.')
+  const t = (text ?? '').trim().replace(/^[<>]\s*/, '').replace(',', '.')
   if (t === '' || !/^[-+]?\d*\.?\d+$/.test(t)) return null
   return Number(t)
 }
@@ -130,13 +130,13 @@ export function pruefeAusloesezeit(s: Pick<Stromkreis, 'rcdArt' | 'ausloesezeit'
   return vergleiche(t, (v) => v <= g.max, `≤ ${g.max} ms`)
 }
 
-/** Free text such as "230 V" or "230/400 V": every number must fall into one of the allowed ranges. */
+/** Netzspannung L–N: a single value (also ">230"). Non-empty text that is not a number is a Verstoss. */
 export function pruefeNetzspannung(text: string): Pruefung {
-  const zahlen = (text ?? '').match(/\d+(?:[.,]\d+)?/g)?.map((z) => parseZahl(z)).filter((z): z is number => z !== null) ?? []
-  const boundary = GRENZWERTE.netzspannung.map((r) => `${r.min}–${r.max} V`).join(' oder ')
-  if (zahlen.length === 0) return OK
-  const imBereich = (v: number) => GRENZWERTE.netzspannung.some((r) => v >= r.min && v <= r.max)
-  return { ok: zahlen.every(imBereich), boundary }
+  const { min, max } = GRENZWERTE.netzspannung
+  const boundary = `${min}–${max} V`
+  const wert = parseZahl(text)
+  if (wert === null) return (text ?? '').trim() === '' ? OK : { ok: false, boundary }
+  return vergleiche(wert, (v) => v >= min && v <= max, boundary)
 }
 
 /** Fields of a Stromkreis that have a Grenzwert. */
@@ -155,6 +155,11 @@ export function pruefeFelder(s: Stromkreis): Partial<Record<PruefFeldKey, Pruefu
     ikEnde: pruefeIkEnde(s),
     ausloesezeit: pruefeAusloesezeit(s),
   }
+}
+
+/** Grenzwert text of one field regardless of its current value (for the keypad hint), null when it has none. */
+export function grenzwertText(s: Stromkreis, key: PruefFeldKey): string | null {
+  return pruefeFelder({ ...s, [key]: '0' })[key]?.boundary ?? null
 }
 
 /** Only the Verstösse of a Stromkreis: field -> required boundary. */

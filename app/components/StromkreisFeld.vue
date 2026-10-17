@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { Stromkreis } from '~/utils/protokoll-store'
-import type { Pruefung } from '~/utils/grenzwerte'
 import { RCD_ARTEN, UEBERSTROMSCHUTZ_ARTEN } from '~/utils/stromkreis'
 
 export type FeldKey = Exclude<keyof Stromkreis, 'id'>
@@ -12,52 +11,45 @@ export interface FeldDef {
   select?: 'ueberstromschutz' | 'rcd'
 }
 
-const props = defineProps<{ stromkreis: Stromkreis; feld: FeldDef; pruefung?: Pruefung }>()
-const emit = defineEmits<{ update: [patch: Partial<Omit<Stromkreis, 'id'>>] }>()
+/** One Stammdaten field of a Stromkreis (Messwerte are MesswertKarte). */
+const props = defineProps<{ stromkreis: Stromkreis; feld: FeldDef; aktiv?: boolean; keypadKey?: string }>()
+const emit = defineEmits<{ update: [patch: Partial<Omit<Stromkreis, 'id'>>]; open: [] }>()
 
+// Reka's SelectItem rejects '' as a value, so "nicht gewählt" gets a sentinel that maps to '' in the store.
+const KEINE = '__keine__'
 const items = computed(() => {
   const arten = props.feld.select === 'rcd' ? RCD_ARTEN : UEBERSTROMSCHUTZ_ARTEN
-  return [{ label: '–', value: '' }, ...arten]
+  return [{ label: '–', value: KEINE }, ...arten]
 })
-/** Required boundary when this field is a Verstoss (ADR-0003), else undefined. */
-const verstoss = computed(() => (props.pruefung && !props.pruefung.ok ? props.pruefung.boundary : null))
-/** Neutral hint (e.g. gG without table value), not a Verstoss. */
-const hinweis = computed(() => (props.pruefung?.nichtGeprueft ? props.pruefung.boundary : null))
 const value = computed(() => props.stromkreis[props.feld.key] as string)
+const selectValue = computed(() => value.value || KEINE)
 const ariaLabel = computed(() => `${props.feld.label}${props.feld.unit ? ` (${props.feld.unit})` : ''}, Stromkreis ${props.stromkreis.nr}`)
 
 function set(v: unknown) {
-  emit('update', { [props.feld.key]: String(v ?? '') })
+  const text = String(v ?? '')
+  emit('update', { [props.feld.key]: text === KEINE ? '' : text })
 }
 </script>
 
 <template>
-  <div class="w-full">
-  <USelect
-    v-if="feld.select"
+  <USelect v-if="feld.select" :model-value="selectValue" :items="items" class="w-full" :aria-label="ariaLabel" @update:model-value="set" />
+  <!-- numeric: compact tappable field that opens the keypad (#15) -->
+  <button
+    v-else-if="feld.numeric"
+    type="button"
+    :data-keypad="keypadKey"
+    :aria-label="`${ariaLabel}: ${value || 'leer'}`"
+    class="flex min-h-11 w-full cursor-pointer items-center rounded-sm bg-white px-3 py-2 text-left text-base font-medium text-ink outline-none ring-inset disabled:cursor-default disabled:opacity-75"
+    :class="aktiv ? 'ring-[3px] ring-ink' : 'ring-2 ring-ink'"
+    @click="emit('open')"
+  >
+    <span :class="value ? '' : 'text-muted'">{{ value || '–' }}</span>
+  </button>
+  <UInput
+    v-else
     :model-value="value"
-    :items="items"
-    size="xl"
     class="w-full"
     :aria-label="ariaLabel"
     @update:model-value="set"
   />
-  <UInput
-    v-else
-    :model-value="value"
-    size="xl"
-    class="w-full"
-    :inputmode="feld.numeric ? 'decimal' : 'text'"
-    :aria-label="ariaLabel"
-    :color="verstoss ? 'error' : undefined"
-    :highlight="!!verstoss"
-    @update:model-value="set"
-  >
-    <template v-if="feld.unit" #trailing>
-      <span class="text-xs text-muted">{{ feld.unit }}</span>
-    </template>
-  </UInput>
-  <p v-if="verstoss" class="mt-1 text-sm font-medium text-error" role="status">{{ verstoss }}</p>
-  <p v-else-if="hinweis" class="mt-1 text-sm text-muted" role="status">{{ hinweis }}</p>
-  </div>
 </template>
