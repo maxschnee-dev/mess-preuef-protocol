@@ -55,10 +55,10 @@ function entsperren() {
         </template>
         <template v-else>
           <UFormField label="Name">
-            <UInput v-model="entwurf[who].name" class="w-full" :disabled="isLocked" />
+            <UInput v-model="entwurf[who].name" class="w-full" />
           </UFormField>
           <UFormField label="Datum">
-            <UInput v-model="entwurf[who].datum" type="date" class="w-full" :disabled="isLocked" />
+            <UInput v-model="entwurf[who].datum" type="date" class="w-full" />
           </UFormField>
           <SignaturPad :key="`${who}-${padKey}`" @change="entwurf[who].bild = $event" />
           <UButton label="Unterschreiben und sperren" :disabled="!isSignatureComplete(entwurf[who])" @click="unterschreiben(who)" />
