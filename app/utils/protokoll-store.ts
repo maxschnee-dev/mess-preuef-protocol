@@ -8,9 +8,47 @@ import { createProtokollForm, withFormDefaults, type ProtokollForm } from './pro
 export const SCHEMA_VERSION = 1
 export const STORAGE_KEY = 'mpp:v1:state'
 
-/** Placeholder; ticket #5 adds the real fields. */
+/** Überstromschutz Art/Charakteristik ('' = not set). */
+export type UeberstromschutzArt = '' | 'LS-B' | 'LS-C' | 'LS-D' | 'gG' | 'andere'
+/** RCD (FI) type ('' = no RCD / not set). */
+export type RcdArt = '' | 'A' | 'AC' | 'F' | 'B' | 'A-S' | 'B-S' | 'andere'
+
+/**
+ * One Stromkreis. All free-form values are strings (raw input, '' = not
+ * measured / not set) so validation (#6) can parse them as needed.
+ */
 export interface Stromkreis {
   id: string
+  // Stammdaten
+  nr: string
+  bezeichnung: string
+  leitungArtTyp: string
+  leiterAnzahl: string
+  leiterQuerschnitt: string
+  ueberstromschutzArt: UeberstromschutzArt
+  /** Free text, only meaningful when ueberstromschutzArt === 'andere'. */
+  ueberstromschutzAndere: string
+  /** I_N in A */
+  ueberstromschutzIn: string
+  /** RCD I_N in A */
+  rcdIn: string
+  rcdArt: RcdArt
+  /** RCD I_ΔN in mA */
+  rcdIdn: string
+  // Spannungsfrei-Messungen
+  /** Leitfähigkeit Schutzleiter (Durchgang) in Ω */
+  schutzleiter: string
+  /** R_ISO in MΩ */
+  rIso: string
+  /** I_Leck in mA */
+  iLeck: string
+  // Messungen unter Spannung
+  /** I_K Anfang in A */
+  ikAnfang: string
+  /** I_K Ende in A */
+  ikEnde: string
+  /** RCD-Auslösezeit in ms */
+  ausloesezeit: string
 }
 
 /** Placeholders for the autocomplete store (ticket #7 adds address etc.). */
