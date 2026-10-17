@@ -13,9 +13,12 @@ export interface Stromkreis {
   id: string
 }
 
-/** Placeholders for the autocomplete store (ticket #7 adds address etc.). */
+/** Autocomplete store entries (ticket #7). `name` is the Partei's Name 1. */
 export interface Company {
   name: string
+  name2: string
+  strasse: string
+  plzOrt: string
 }
 export interface Messgeraet {
   name: string

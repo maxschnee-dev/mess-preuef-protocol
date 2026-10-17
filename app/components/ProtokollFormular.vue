@@ -4,8 +4,29 @@ import {
   setAlleSichtpruefungIo,
 } from '~/utils/protokoll-form'
 import type { Partei } from '~/utils/protokoll-form'
+import type { Company } from '~/utils/protokoll-store'
+import { planFill, suggest } from '~/utils/stammdaten'
 
-const { selected, update } = useProtokolle()
+const { selected, update, companies, messgeraete, syncStammdaten } = useProtokolle()
+const fokus = ref<string | null>(null)
+const companyVorschlaege = (who: 'auftraggeber' | 'auftragnehmer') =>
+  fokus.value === who && selected.value ? suggest(companies.value, selected.value[who].name1) : []
+const geraetVorschlaege = (i: number) =>
+  fokus.value === `gerat${i}` && selected.value ? suggest(messgeraete.value, selected.value.messgeraete[i] ?? '') : []
+
+/** Fills Name 2/Strasse/PLZ-Ort from the picked company; asks before replacing different existing values. */
+function pickCompany(who: 'auftraggeber' | 'auftragnehmer', c: Company) {
+  const p = selected.value
+  if (!p) return
+  const { patch, conflict } = planFill(p[who], c)
+  if (conflict && !confirm(`Bestehende Angaben bei ${who === 'auftraggeber' ? 'Auftraggeber' : 'Auftragnehmer'} durch die Adresse von «${c.name}» ersetzen?`)) return
+  update(p.id, { [who]: { ...p[who], ...patch } })
+  fokus.value = null
+}
+function pickMessgeraet(i: number, name: string) {
+  setMessgeraet(i, name)
+  fokus.value = null
+}
 const SCHUTZ_ITEMS: string[] = [...SCHUTZ_SYSTEME]
 
 type Section = 'installation' | 'kontrolle'
@@ -79,7 +100,7 @@ const alleIoChecked = computed(() => !!selected.value && SICHTPRUEFUNG_ITEMS.eve
 </script>
 
 <template>
-  <div v-if="selected" class="space-y-4">
+  <div v-if="selected" class="space-y-4" @focusout="syncStammdaten">
     <UCard v-for="[who, titel, arten] in ([['auftraggeber', 'Auftraggeber', AUFTRAGGEBER_ARTEN], ['auftragnehmer', 'Auftragnehmer', AUFTRAGNEHMER_ARTEN]] as const)" :key="who">
       <template #header><h2 class="font-semibold">{{ titel }}</h2></template>
       <div class="grid gap-4 sm:grid-cols-2">
@@ -89,7 +110,19 @@ const alleIoChecked = computed(() => !!selected.value && SICHTPRUEFUNG_ITEMS.eve
             @update:model-value="setPartei(who, 'art', $event)"
           />
         </UFormField>
-        <UFormField label="Name 1"><UInput :model-value="selected[who].name1" class="w-full" @update:model-value="setPartei(who, 'name1', $event)" /></UFormField>
+        <UFormField label="Name 1" class="relative">
+          <UInput
+            :model-value="selected[who].name1" class="w-full" autocomplete="off"
+            @focus="fokus = who" @blur="fokus = null" @update:model-value="setPartei(who, 'name1', $event)"
+          />
+          <ul v-if="companyVorschlaege(who).length" class="absolute z-10 mt-1 w-full rounded-md border border-default bg-default shadow-lg">
+            <li v-for="c in companyVorschlaege(who)" :key="c.name">
+              <button type="button" class="w-full px-3 py-2 text-left text-sm hover:bg-elevated" @mousedown.prevent="pickCompany(who, c)">
+                {{ c.name }}<span class="block text-xs text-muted">{{ [c.name2, c.strasse, c.plzOrt].filter(Boolean).join(', ') }}</span>
+              </button>
+            </li>
+          </ul>
+        </UFormField>
         <UFormField label="Name 2"><UInput :model-value="selected[who].name2" class="w-full" @update:model-value="setPartei(who, 'name2', $event)" /></UFormField>
         <UFormField label="Strasse"><UInput :model-value="selected[who].strasse" class="w-full" @update:model-value="setPartei(who, 'strasse', $event)" /></UFormField>
         <UFormField label="PLZ / Ort"><UInput :model-value="selected[who].plzOrt" class="w-full" @update:model-value="setPartei(who, 'plzOrt', $event)" /></UFormField>
@@ -168,8 +201,16 @@ const alleIoChecked = computed(() => !!selected.value && SICHTPRUEFUNG_ITEMS.eve
         </UFormField>
         <div class="space-y-2">
           <p class="text-sm font-medium">Messgeräte</p>
-          <div v-for="(m, i) in selected.messgeraete" :key="i" class="flex gap-2">
-            <UInput :model-value="m" class="w-full" aria-label="Messgerät" @update:model-value="setMessgeraet(i, $event)" />
+          <div v-for="(m, i) in selected.messgeraete" :key="i" class="relative flex gap-2">
+            <UInput
+              :model-value="m" class="w-full" aria-label="Messgerät" autocomplete="off"
+              @focus="fokus = `gerat${i}`" @blur="fokus = null" @update:model-value="setMessgeraet(i, $event)"
+            />
+            <ul v-if="geraetVorschlaege(i).length" class="absolute top-full z-10 mt-1 w-full rounded-md border border-default bg-default shadow-lg">
+              <li v-for="g in geraetVorschlaege(i)" :key="g.name">
+                <button type="button" class="w-full px-3 py-2 text-left text-sm hover:bg-elevated" @mousedown.prevent="pickMessgeraet(i, g.name)">{{ g.name }}</button>
+              </li>
+            </ul>
             <UButton icon="i-lucide-trash-2" color="neutral" variant="ghost" aria-label="Messgerät entfernen" @click="removeMessgeraet(i)" />
           </div>
           <UButton icon="i-lucide-plus" variant="soft" @click="addMessgeraet">Messgerät hinzufügen</UButton>
