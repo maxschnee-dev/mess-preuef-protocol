@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { FUNKTIONSPRUEFUNG_ITEMS, SCHUTZ_SYSTEME, SICHTPRUEFUNG_ITEMS, setAlleSichtpruefungIo } from '~/utils/protokoll-form'
-import { verstoesseDesProtokolls } from '~/utils/grenzwerte'
+import { pruefeNetzspannung } from '~/utils/grenzwerte'
 import { suggest } from '~/utils/stammdaten'
 
 const { selected, update, messgeraete, syncStammdaten, isLocked } = useProtokolle()
@@ -13,12 +13,8 @@ function pickMessgeraet(i: number, name: string) {
   fokus.value = null
 }
 const SCHUTZ_ITEMS: string[] = [...SCHUTZ_SYSTEME]
-const verstoesse = computed(() => (selected.value ? verstoesseDesProtokolls(selected.value) : { netzspannung: null }))
-
-function setNetzspannung(value: unknown) {
-  const p = selected.value
-  if (p) update(p.id, { netzspannung: String(value ?? '') })
-}
+const keypad = useKeypad()
+const netzPruefung = computed(() => pruefeNetzspannung(selected.value?.netzspannung ?? ''))
 
 function setCheck(section: 'sichtpruefung' | 'funktionspruefung', key: string, value: boolean | 'indeterminate') {
   const p = selected.value
@@ -79,10 +75,16 @@ const alleIoChecked = computed(() => !!selected.value && SICHTPRUEFUNG_ITEMS.eve
         v-for="i in FUNKTIONSPRUEFUNG_ITEMS" :key="i.key" :model-value="selected.funktionspruefung.checks[i.key]" :label="i.label"
         @update:model-value="setCheck('funktionspruefung', i.key, $event)"
       />
-      <UFormField label="Gemessene Netzspannung" class="pt-2">
-        <UInput :model-value="selected.netzspannung" placeholder="z. B. 230 V oder 230/400 V" class="w-full" :color="verstoesse.netzspannung ? 'error' : undefined" :highlight="!!verstoesse.netzspannung" @update:model-value="setNetzspannung($event)" />
-        <p v-if="verstoesse.netzspannung" class="mt-1 text-base font-semibold text-error" role="status">{{ verstoesse.netzspannung }}</p>
-      </UFormField>
+      <MesswertKarte
+        class="mt-2 max-w-xs"
+        label="Netzspannung L–N"
+        unit="V"
+        :model-value="selected.netzspannung"
+        :pruefung="netzPruefung"
+        keypad-key="netzspannung"
+        :aktiv="keypad.target.value?.kind === 'netz'"
+        @open="keypad.open({ kind: 'netz' })"
+      />
     </div>
   </UCard>
 

@@ -15,5 +15,6 @@ watchEffect(() => {
     <ProtokollSchritte :protokoll-id="id" />
     <NuxtPage />
     <ProtokollNavigation :protokoll-id="id" />
+    <KeypadSheet />
   </div>
 </template>

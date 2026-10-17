@@ -229,7 +229,7 @@ export function buildDocDefinition(p: Protokoll, options: PdfOptions = {}): DocD
         ]),
         section('Funktionsprüfung', [
           ...FUNKTIONSPRUEFUNG_ITEMS.map((it) => checkbox(!!p.funktionspruefung.checks[it.key], it.label)),
-          field('Netzspannung', p.netzspannung),
+          field('Netzspannung L–N', p.netzspannung),
         ]),
         section('Messgeräte', [
           ...(p.messgeraete.length ? p.messgeraete : [' ']).map((m) => ({ text: m, style: 'value', margin: [0, 1, 0, 1] })),

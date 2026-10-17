@@ -60,3 +60,9 @@
     letter-spacing: -0.01em;
   }
 }
+
+/* Keypad bottom sheet (#15) is open: keep the page scrollable above it (height set by KeypadSheet). */
+html.keypad-open {
+  padding-bottom: var(--keypad-h, 24rem);
+  scroll-padding-bottom: calc(var(--keypad-h, 24rem) + 0.5rem);
+}

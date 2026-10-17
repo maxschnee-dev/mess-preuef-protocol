@@ -3,6 +3,8 @@ import type { FeldDef } from './StromkreisFeld.vue'
 import { isPruefFeldKey, pruefeFelder } from '~/utils/grenzwerte'
 import type { PruefFeldKey } from '~/utils/grenzwerte'
 import type { Stromkreis } from '~/utils/protokoll-store'
+import { FELD_INFO, MESSWERT_REIHENFOLGE, targetKey } from '~/utils/keypad'
+import type { KeypadTarget, MesswertKey, StammKey } from '~/utils/keypad'
 
 const props = defineProps<{ stromkreis: Stromkreis }>()
 const emit = defineEmits<{ update: [patch: Partial<Omit<Stromkreis, 'id'>>] }>()
@@ -22,25 +24,17 @@ const stammdaten: FeldDef[] = [
 ]
 const sichtbar = computed(() => stammdaten.filter((f) => f.key !== 'ueberstromschutzAndere' || props.stromkreis.ueberstromschutzArt === 'andere'))
 
-// Messwert cards in entry order (keypad "Weiter" follows this order, #15).
-const gruppen: { titel: string; felder: (FeldDef & { unit: string })[] }[] = [
-  {
-    titel: 'Spannungsfrei-Messungen',
-    felder: [
-      { key: 'schutzleiter', label: 'Schutzleiter', unit: 'Ω' },
-      { key: 'rIso', label: 'R_ISO', unit: 'MΩ' },
-      { key: 'iLeck', label: 'I_Leck', unit: 'mA' },
-    ],
-  },
-  {
-    titel: 'Messungen unter Spannung',
-    felder: [
-      { key: 'ikAnfang', label: 'I_K Anfang', unit: 'A' },
-      { key: 'ikEnde', label: 'I_K Ende', unit: 'A' },
-      { key: 'ausloesezeit', label: 'Auslösezeit', unit: 'ms' },
-    ],
-  },
-]
+// Messwert cards in entry order (keypad "Weiter" follows MESSWERT_REIHENFOLGE, #15).
+const gruppen: { titel: string; felder: { key: MesswertKey; label: string; unit: string }[] }[] = [
+  { titel: 'Spannungsfrei-Messungen', keys: MESSWERT_REIHENFOLGE.slice(0, 3) },
+  { titel: 'Messungen unter Spannung', keys: MESSWERT_REIHENFOLGE.slice(3) },
+].map(({ titel, keys }) => ({ titel, felder: keys.map((key) => ({ key, label: FELD_INFO[key].label, unit: FELD_INFO[key].unit })) }))
+
+const keypad = useKeypad()
+const ziel = (key: StammKey | MesswertKey, kind: 'stamm' | 'messwert'): KeypadTarget => ({ kind, id: props.stromkreis.id, key }) as KeypadTarget
+const keyFuer = (key: StammKey | MesswertKey, kind: 'stamm' | 'messwert') => targetKey(ziel(key, kind))
+const istAktiv = (key: StammKey | MesswertKey, kind: 'stamm' | 'messwert') =>
+  !!keypad.target.value && targetKey(keypad.target.value) === keyFuer(key, kind)
 
 const pruefungen = computed(() => pruefeFelder(props.stromkreis))
 const pruefungFuer = (key: string) => (isPruefFeldKey(key) ? pruefungen.value[key as PruefFeldKey] : undefined)
@@ -55,7 +49,14 @@ const pruefungFuer = (key: string) => (isPruefFeldKey(key) ? pruefungen.value[ke
         :label="f.label + (f.unit ? ` (${f.unit})` : '')"
         :class="f.key === 'bezeichnung' || f.key === 'leitungArtTyp' ? 'col-span-2' : ''"
       >
-        <StromkreisFeld :stromkreis="stromkreis" :feld="f" @update="emit('update', $event)" />
+        <StromkreisFeld
+          :stromkreis="stromkreis"
+          :feld="f"
+          :aktiv="f.numeric && istAktiv(f.key as StammKey, 'stamm')"
+          :keypad-key="f.numeric ? keyFuer(f.key as StammKey, 'stamm') : undefined"
+          @update="emit('update', $event)"
+          @open="keypad.open(ziel(f.key as StammKey, 'stamm'))"
+        />
       </UFormField>
     </div>
     <section v-for="g in gruppen" :key="g.titel" class="space-y-2">
@@ -69,7 +70,9 @@ const pruefungFuer = (key: string) => (isPruefFeldKey(key) ? pruefungen.value[ke
           :model-value="stromkreis[f.key] as string"
           :pruefung="pruefungFuer(f.key)"
           :aria-label="`${f.label} (${f.unit}), Stromkreis ${stromkreis.nr}`"
-          @update:model-value="emit('update', { [f.key]: $event })"
+          :aktiv="istAktiv(f.key, 'messwert')"
+          :keypad-key="keyFuer(f.key, 'messwert')"
+          @open="keypad.open(ziel(f.key, 'messwert'))"
         />
       </div>
     </section>
