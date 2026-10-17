@@ -7,7 +7,7 @@ onMounted(requestPersistence)
   <UApp>
     <NuxtPwaManifest />
     <UContainer class="space-y-4 py-6">
-      <h1 class="text-2xl font-semibold">Mess- + Prüfprotokoll</h1>
+      <h1 class="text-3xl font-bold">Mess- + Prüfprotokoll</h1>
       <ProtokollSwitcher />
       <!-- A signed Protokoll is read-only: the fieldset disables every native control/button inside (#8) -->
       <fieldset :disabled="isLocked" class="min-w-0 space-y-4">

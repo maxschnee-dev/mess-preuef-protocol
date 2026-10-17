@@ -66,12 +66,12 @@ function clear() {
   <div class="space-y-2">
     <canvas
       ref="canvas"
-      class="h-40 w-full touch-none rounded border border-default bg-white"
+      class="h-40 w-full touch-none rounded-sm border-2 border-ink bg-white"
       @pointerdown.prevent="down"
       @pointermove.prevent="move"
       @pointerup="up"
       @pointercancel="up"
     />
-    <UButton size="xs" color="neutral" variant="outline" label="Zurücksetzen" @click="clear" />
+    <UButton color="neutral" variant="outline" label="Zurücksetzen" @click="clear" />
   </div>
 </template>

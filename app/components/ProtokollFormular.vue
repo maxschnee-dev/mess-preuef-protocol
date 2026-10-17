@@ -120,7 +120,7 @@ const alleIoChecked = computed(() => !!selected.value && SICHTPRUEFUNG_ITEMS.eve
 <template>
   <div v-if="selected" class="space-y-4" @focusout="syncStammdaten">
     <UCard v-for="[who, titel, arten] in ([['auftraggeber', 'Auftraggeber', AUFTRAGGEBER_ARTEN], ['auftragnehmer', 'Auftragnehmer', AUFTRAGNEHMER_ARTEN]] as const)" :key="who">
-      <template #header><h2 class="font-semibold">{{ titel }}</h2></template>
+      <template #header><h2 class="text-xl font-bold">{{ titel }}</h2></template>
       <div class="grid gap-4 sm:grid-cols-2">
         <UFormField label="Art" class="sm:col-span-2">
           <USelect
@@ -133,10 +133,10 @@ const alleIoChecked = computed(() => !!selected.value && SICHTPRUEFUNG_ITEMS.eve
             :model-value="selected[who].name1" class="w-full" autocomplete="off"
             @focus="fokus = who" @blur="fokus = null" @update:model-value="setPartei(who, 'name1', $event)"
           />
-          <ul v-if="companyVorschlaege(who).length" class="absolute z-10 mt-1 w-full rounded-md border border-default bg-default shadow-lg">
+          <ul v-if="companyVorschlaege(who).length" class="absolute z-10 mt-1 w-full overflow-hidden rounded-sm border-2 border-ink bg-white shadow-lg">
             <li v-for="c in companyVorschlaege(who)" :key="c.name">
-              <button type="button" class="w-full px-3 py-2 text-left text-sm hover:bg-elevated" @mousedown.prevent="pickCompany(who, c)">
-                {{ c.name }}<span class="block text-xs text-muted">{{ [c.name2, c.strasse, c.plzOrt].filter(Boolean).join(', ') }}</span>
+              <button type="button" class="w-full px-3 py-2.5 text-left text-base font-medium hover:bg-elevated" @mousedown.prevent="pickCompany(who, c)">
+                {{ c.name }}<span class="block text-sm font-normal text-muted">{{ [c.name2, c.strasse, c.plzOrt].filter(Boolean).join(', ') }}</span>
               </button>
             </li>
           </ul>
@@ -148,7 +148,7 @@ const alleIoChecked = computed(() => !!selected.value && SICHTPRUEFUNG_ITEMS.eve
     </UCard>
 
     <UCard>
-      <template #header><h2 class="font-semibold">Installation</h2></template>
+      <template #header><h2 class="text-xl font-bold">Installation</h2></template>
       <div class="grid gap-4 sm:grid-cols-2">
         <UFormField v-for="[key, label] in installationFelder" :key="key" :label="label">
           <UInput :model-value="selected.installation[key]" class="w-full" @update:model-value="setSection('installation', key, $event)" />
@@ -157,7 +157,7 @@ const alleIoChecked = computed(() => !!selected.value && SICHTPRUEFUNG_ITEMS.eve
     </UCard>
 
     <UCard>
-      <template #header><h2 class="font-semibold">Kontrolle</h2></template>
+      <template #header><h2 class="text-xl font-bold">Kontrolle</h2></template>
       <div class="grid gap-4 sm:grid-cols-3">
         <UFormField v-for="[key, label] in kontrolleFelder" :key="key" :label="label">
           <UInput :model-value="selected.kontrolle[key]" class="w-full" @update:model-value="setSection('kontrolle', key, $event)" />
@@ -166,7 +166,7 @@ const alleIoChecked = computed(() => !!selected.value && SICHTPRUEFUNG_ITEMS.eve
     </UCard>
 
     <UCard>
-      <template #header><h2 class="font-semibold">Anlage / Anlageteil und Verbraucher</h2></template>
+      <template #header><h2 class="text-xl font-bold">Anlage / Anlageteil und Verbraucher</h2></template>
       <div class="space-y-3">
         <div v-for="z in selected.anlageteile" :key="z.id" class="grid grid-cols-[1fr_1fr_auto] items-end gap-2">
           <UFormField label="Anlage / Anlageteil"><UInput :model-value="z.anlageteil" class="w-full" @update:model-value="setZeile(z.id, 'anlageteil', $event)" /></UFormField>
@@ -178,7 +178,7 @@ const alleIoChecked = computed(() => !!selected.value && SICHTPRUEFUNG_ITEMS.eve
     </UCard>
 
     <UCard>
-      <template #header><h2 class="font-semibold">Sichtprüfung</h2></template>
+      <template #header><h2 class="text-xl font-bold">Sichtprüfung</h2></template>
       <div class="space-y-3">
         <UCheckbox :model-value="alleIoChecked" label="Alle i.O." @update:model-value="alleIo" />
         <USeparator />
@@ -199,7 +199,7 @@ const alleIoChecked = computed(() => !!selected.value && SICHTPRUEFUNG_ITEMS.eve
     </UCard>
 
     <UCard>
-      <template #header><h2 class="font-semibold">Funktionsprüfung</h2></template>
+      <template #header><h2 class="text-xl font-bold">Funktionsprüfung</h2></template>
       <div class="space-y-3">
         <UCheckbox
           v-for="i in FUNKTIONSPRUEFUNG_ITEMS" :key="i.key" :model-value="selected.funktionspruefung.checks[i.key]" :label="i.label"
@@ -207,27 +207,27 @@ const alleIoChecked = computed(() => !!selected.value && SICHTPRUEFUNG_ITEMS.eve
         />
         <UFormField label="Gemessene Netzspannung" class="pt-2">
           <UInput :model-value="selected.netzspannung" placeholder="z. B. 230 V oder 230/400 V" class="w-full" :color="verstoesse.netzspannung ? 'error' : undefined" :highlight="!!verstoesse.netzspannung" @update:model-value="setText('netzspannung', $event)" />
-          <p v-if="verstoesse.netzspannung" class="mt-1 text-sm font-medium text-error" role="status">{{ verstoesse.netzspannung }}</p>
+          <p v-if="verstoesse.netzspannung" class="mt-1 text-base font-semibold text-error" role="status">{{ verstoesse.netzspannung }}</p>
         </UFormField>
       </div>
     </UCard>
 
     <UCard>
-      <template #header><h2 class="font-semibold">Bemerkungen, Messgeräte, Prüfung</h2></template>
+      <template #header><h2 class="text-xl font-bold">Bemerkungen, Messgeräte, Prüfung</h2></template>
       <div class="space-y-4">
         <UFormField label="Bemerkungen">
           <UTextarea :model-value="selected.bemerkungen" :rows="3" class="w-full" @update:model-value="setText('bemerkungen', $event)" />
         </UFormField>
         <div class="space-y-2">
-          <p class="text-sm font-medium">Messgeräte</p>
+          <p class="text-base font-bold">Messgeräte</p>
           <div v-for="(m, i) in selected.messgeraete" :key="i" class="relative flex gap-2">
             <UInput
               :model-value="m" class="w-full" aria-label="Messgerät" autocomplete="off"
               @focus="fokus = `gerat${i}`" @blur="fokus = null" @update:model-value="setMessgeraet(i, $event)"
             />
-            <ul v-if="geraetVorschlaege(i).length" class="absolute top-full z-10 mt-1 w-full rounded-md border border-default bg-default shadow-lg">
+            <ul v-if="geraetVorschlaege(i).length" class="absolute top-full z-10 mt-1 w-full overflow-hidden rounded-sm border-2 border-ink bg-white shadow-lg">
               <li v-for="g in geraetVorschlaege(i)" :key="g.name">
-                <button type="button" class="w-full px-3 py-2 text-left text-sm hover:bg-elevated" @mousedown.prevent="pickMessgeraet(i, g.name)">{{ g.name }}</button>
+                <button type="button" class="w-full px-3 py-2.5 text-left text-base font-medium hover:bg-elevated" @mousedown.prevent="pickMessgeraet(i, g.name)">{{ g.name }}</button>
               </li>
             </ul>
             <UButton icon="i-lucide-trash-2" color="neutral" variant="ghost" aria-label="Messgerät entfernen" @click="removeMessgeraet(i)" />
@@ -247,7 +247,7 @@ const alleIoChecked = computed(() => !!selected.value && SICHTPRUEFUNG_ITEMS.eve
     </UCard>
 
     <UCard>
-      <template #header><h2 class="font-semibold">Prüfergebnis</h2></template>
+      <template #header><h2 class="text-xl font-bold">Prüfergebnis</h2></template>
       <UCheckbox :model-value="selected.pruefergebnis.keineMaengel" label="Keine Mängel festgestellt" @update:model-value="setKeineMaengel" />
       <UAlert
         v-if="selected.pruefergebnis.keineMaengel && verstoesse.anzahl"
