@@ -16,6 +16,7 @@ onMounted(requestPersistence)
         <StromkreisListe />
       </fieldset>
       <SignaturenPanel />
+      <PdfExport />
       <BackupPanel />
     </UContainer>
   </UApp>
