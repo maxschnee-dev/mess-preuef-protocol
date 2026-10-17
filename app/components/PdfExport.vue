@@ -24,7 +24,8 @@ async function run() {
     }
     const result = await exportPdf(p, { legende: legende.value }, z)
     if (result === 'downloaded') toast.add({ title: 'PDF heruntergeladen', color: 'success' })
-  } catch {
+  } catch (e) {
+    console.error(e)
     toast.add({ title: 'PDF-Export fehlgeschlagen', color: 'error' })
   } finally {
     busy.value = false

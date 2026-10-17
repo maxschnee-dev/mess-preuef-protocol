@@ -51,7 +51,7 @@ export async function createZertifikat(name1: string): Promise<Zertifikat> {
 export async function signPdf(pdf: Uint8Array, z: Zertifikat): Promise<Uint8Array<ArrayBuffer>> {
   const { Buffer } = await import('buffer')
   globalThis.Buffer ??= Buffer
-  const [forge, { PDFDocument }, { pdflibAddPlaceholder }, { default: signpdf }, { P12Signer }] = await Promise.all([
+  const [forge, { PDFDocument }, { pdflibAddPlaceholder }, { SignPdf }, { P12Signer }] = await Promise.all([
     loadForge(),
     import('pdf-lib'),
     import('@signpdf/placeholder-pdf-lib'),
@@ -65,6 +65,6 @@ export async function signPdf(pdf: Uint8Array, z: Zertifikat): Promise<Uint8Arra
   const p12 = forge.asn1.toDer(
     forge.pkcs12.toPkcs12Asn1(forge.pki.privateKeyFromPem(z.keyPem), [forge.pki.certificateFromPem(z.certPem)], '', { algorithm: '3des' }),
   ).getBytes()
-  const signed = await signpdf.sign(prepared, new P12Signer(Buffer.from(p12, 'binary'), { passphrase: '' }))
+  const signed = await new SignPdf().sign(prepared, new P12Signer(Buffer.from(p12, 'binary'), { passphrase: '' }))
   return new Uint8Array(signed)
 }

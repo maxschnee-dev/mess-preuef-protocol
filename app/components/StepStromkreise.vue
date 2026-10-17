@@ -94,7 +94,7 @@ const chipClass = (aktiv: boolean, verstoss: boolean) => [
         <UButton icon="i-lucide-chevron-left" color="neutral" variant="outline" label="Vorheriger" :to="index > 0 ? stromkreisPath(id, index) : undefined" :disabled="index === 0" />
         <UButton trailing-icon="i-lucide-chevron-right" color="neutral" variant="outline" label="Nächster" :to="index < liste.length - 1 ? stromkreisPath(id, index + 2) : undefined" :disabled="index === liste.length - 1" />
         <span class="flex-1" />
-        <fieldset :disabled="isLocked" class="min-w-0">
+        <fieldset :disabled="isLocked" class="shrink-0">
           <UDropdownMenu :items="menu" :content="{ align: 'end' }">
             <UButton icon="i-lucide-ellipsis" color="neutral" variant="outline" aria-label="Weitere Aktionen" />
           </UDropdownMenu>
