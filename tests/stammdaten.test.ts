@@ -56,16 +56,20 @@ describe('planFill', () => {
   const c = { name: 'Muster AG', name2: 'Verwaltung', strasse: 'Bahnhofstr. 1', plzOrt: '3000 Bern' }
   const leer = { art: 'Eigentümer', name1: 'Mus', name2: '', strasse: '', plzOrt: '' }
   it('fills empty target fields directly, sets Name 1', () => {
-    expect(planFill(leer, c)).toEqual({ conflict: false, patch: { name1: 'Muster AG', name2: 'Verwaltung', strasse: 'Bahnhofstr. 1', plzOrt: '3000 Bern' } })
+    expect(planFill({ ...leer, name1: '' }, c)).toEqual({ conflict: false, patch: { name1: 'Muster AG', name2: 'Verwaltung', strasse: 'Bahnhofstr. 1', plzOrt: '3000 Bern' } })
+  })
+  it('flags a conflict when Name 1 holds a different non-empty spelling', () => {
+    expect(planFill(leer, c).conflict).toBe(true)
+    expect(planFill({ ...leer, name1: 'muster ag' }, c).conflict).toBe(false)
   })
   it('flags a conflict when a target field holds a different value', () => {
-    expect(planFill({ ...leer, strasse: 'Andere Str. 9' }, c).conflict).toBe(true)
+    expect(planFill({ ...leer, name1: 'Muster AG', strasse: 'Andere Str. 9' }, c).conflict).toBe(true)
   })
   it('is no conflict when existing values are identical', () => {
-    expect(planFill({ ...leer, strasse: 'bahnhofstr. 1' }, c).conflict).toBe(false)
+    expect(planFill({ ...leer, name1: 'Muster AG', strasse: 'bahnhofstr. 1' }, c).conflict).toBe(false)
   })
   it('never blanks a field the company has no value for', () => {
-    const r = planFill({ ...leer, strasse: 'X 1' }, { ...c, strasse: '' })
+    const r = planFill({ ...leer, name1: 'Muster AG', strasse: 'X 1' }, { ...c, strasse: '' })
     expect(r.conflict).toBe(false)
     expect(r.patch).not.toHaveProperty('strasse')
   })

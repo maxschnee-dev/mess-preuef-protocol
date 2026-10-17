@@ -9,6 +9,7 @@ import {
   pruefeRIso,
   pruefeSchutzleiter,
   pruefeStromkreis,
+  verstoesseDerStromkreise,
   verstoesseDesProtokolls,
 } from '../app/utils/grenzwerte'
 
@@ -60,6 +61,11 @@ describe('I_K Ende >= I_a', () => {
     expect(pruefeIkEnde(sk({ ueberstromschutzArt: 'gG', ueberstromschutzIn: '35', ikEnde: '172' })).boundary).toBe('≥ 173 A')
     expect(pruefeIkEnde(sk({ ueberstromschutzArt: 'gG', ueberstromschutzIn: '63', ikEnde: '320' })).ok).toBe(true)
   })
+  it('gG without table value is a neutral hint, not a Verstoss', () => {
+    const r = pruefeIkEnde(sk({ ueberstromschutzArt: 'gG', ueberstromschutzIn: '13', ikEnde: '1' }))
+    expect(r).toMatchObject({ ok: true, boundary: 'gG ohne Tabellenwert – nicht geprüft', nichtGeprueft: true })
+    expect(pruefeStromkreis(sk({ ueberstromschutzArt: 'gG', ueberstromschutzIn: '13', ikEnde: '1' }))).toEqual({})
+  })
   it('unchecked: other device, unknown gG size, missing I_N, empty I_K', () => {
     expect(pruefeIkEnde(sk({ ueberstromschutzArt: 'andere', ueberstromschutzIn: '16', ikEnde: '1' })).ok).toBe(true)
     expect(pruefeIkEnde(sk({ ueberstromschutzArt: 'gG', ueberstromschutzIn: '13', ikEnde: '1' })).ok).toBe(true)
@@ -103,6 +109,12 @@ describe('Netzspannung 207-253 V or 360-440 V', () => {
     expect(pruefeNetzspannung('230 V').ok).toBe(true)
     expect(pruefeNetzspannung('253,5 V')).toEqual({ ok: false, boundary: '207–253 V oder 360–440 V' })
   })
+  it('checks every number in the text', () => {
+    expect(pruefeNetzspannung('230/400 V').ok).toBe(true)
+    expect(pruefeNetzspannung('400 / 230 V').ok).toBe(true)
+    expect(pruefeNetzspannung('230/500 V')).toEqual({ ok: false, boundary: '207–253 V oder 360–440 V' })
+    expect(pruefeNetzspannung('300 V, 230 V').ok).toBe(false)
+  })
   it('empty or unparsable is not a Verstoss', () => {
     expect(pruefeNetzspannung('').ok).toBe(true)
     expect(pruefeNetzspannung('n/a').ok).toBe(true)
@@ -122,5 +134,14 @@ describe('pruefeStromkreis / verstoesseDesProtokolls', () => {
     expect(v.anzahl).toBe(4)
     expect(v.proStromkreis[p.stromkreise[2]!.id]).toBe(2)
     expect(v.netzspannung).toBe('207–253 V oder 360–440 V')
+  })
+})
+
+describe('verstoesseDerStromkreise', () => {
+  it('counts Stromkreis Verstösse without Netzspannung', () => {
+    const a = sk({ rIso: '0,5', schutzleiter: '2' })
+    const v = verstoesseDerStromkreise([a, sk({ rIso: '5' })])
+    expect(v.anzahl).toBe(2)
+    expect(v.proStromkreis[a.id]).toBe(2)
   })
 })

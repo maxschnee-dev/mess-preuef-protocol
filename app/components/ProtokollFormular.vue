@@ -15,14 +15,27 @@ const companyVorschlaege = (who: 'auftraggeber' | 'auftragnehmer') =>
 const geraetVorschlaege = (i: number) =>
   fokus.value === `gerat${i}` && selected.value ? suggest(messgeraete.value, selected.value.messgeraete[i] ?? '') : []
 
-/** Fills Name 2/Strasse/PLZ-Ort from the picked company; asks before replacing different existing values. */
-function pickCompany(who: 'auftraggeber' | 'auftragnehmer', c: Company) {
+type Seite = 'auftraggeber' | 'auftragnehmer'
+const seitenTitel = { auftraggeber: 'Auftraggeber', auftragnehmer: 'Auftragnehmer' } as const
+const ersetzen = ref<{ who: Seite; company: Company } | null>(null)
+const ersetzenOpen = computed({ get: () => ersetzen.value !== null, set: (v) => { if (!v) ersetzen.value = null } })
+
+function applyCompany(who: Seite, c: Company) {
   const p = selected.value
   if (!p) return
-  const { patch, conflict } = planFill(p[who], c)
-  if (conflict && !confirm(`Bestehende Angaben bei ${who === 'auftraggeber' ? 'Auftraggeber' : 'Auftragnehmer'} durch die Adresse von «${c.name}» ersetzen?`)) return
-  update(p.id, { [who]: { ...p[who], ...patch } })
+  update(p.id, { [who]: { ...p[who], ...planFill(p[who], c).patch } })
+}
+/** Fills Name 1/Name 2/Strasse/PLZ-Ort from the picked company; asks (modal) before replacing different existing values. */
+function pickCompany(who: Seite, c: Company) {
+  const p = selected.value
+  if (!p) return
   fokus.value = null
+  if (planFill(p[who], c).conflict) ersetzen.value = { who, company: c }
+  else applyCompany(who, c)
+}
+function confirmErsetzen() {
+  if (ersetzen.value) applyCompany(ersetzen.value.who, ersetzen.value.company)
+  ersetzen.value = null
 }
 function pickMessgeraet(i: number, name: string) {
   setMessgeraet(i, name)
@@ -193,7 +206,7 @@ const alleIoChecked = computed(() => !!selected.value && SICHTPRUEFUNG_ITEMS.eve
           @update:model-value="setCheck('funktionspruefung', i.key, $event)"
         />
         <UFormField label="Gemessene Netzspannung" class="pt-2">
-          <UInput :model-value="selected.netzspannung" inputmode="decimal" placeholder="z. B. 230 V" class="w-full" :color="verstoesse.netzspannung ? 'error' : undefined" :highlight="!!verstoesse.netzspannung" @update:model-value="setText('netzspannung', $event)" />
+          <UInput :model-value="selected.netzspannung" placeholder="z. B. 230 V oder 230/400 V" class="w-full" :color="verstoesse.netzspannung ? 'error' : undefined" :highlight="!!verstoesse.netzspannung" @update:model-value="setText('netzspannung', $event)" />
           <p v-if="verstoesse.netzspannung" class="mt-1 text-sm font-medium text-error" role="status">{{ verstoesse.netzspannung }}</p>
         </UFormField>
       </div>
@@ -245,5 +258,15 @@ const alleIoChecked = computed(() => !!selected.value && SICHTPRUEFUNG_ITEMS.eve
         :title="`${verstossText(verstoesse.anzahl)} offen, obwohl «Keine Mängel festgestellt» angekreuzt ist.`"
       />
     </UCard>
+
+    <UModal v-model:open="ersetzenOpen" :title="`Angaben bei ${ersetzen ? seitenTitel[ersetzen.who] : ''} ersetzen?`">
+      <template #body>
+        <p>Bestehende Angaben werden durch die gespeicherten Angaben von «{{ ersetzen?.company.name }}» ersetzt.</p>
+      </template>
+      <template #footer>
+        <UButton color="neutral" variant="outline" label="Abbrechen" @click="ersetzen = null" />
+        <UButton label="Ersetzen" @click="confirmErsetzen" />
+      </template>
+    </UModal>
   </div>
 </template>
