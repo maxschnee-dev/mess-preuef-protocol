@@ -14,9 +14,16 @@ async function loadForge() {
 export async function createZertifikat(name1: string): Promise<Zertifikat> {
   const forge = await loadForge()
   const name = zertifikatName(name1)
-  const { privateKey, publicKey } = await new Promise<import('node-forge').pki.rsa.KeyPair>((resolve, reject) =>
-    forge.pki.rsa.generateKeyPair({ bits: 2048 }, (e, k) => (e ? reject(e) : resolve(k))),
+  // WebCrypto generates the key natively and off the main thread; forge's pure-JS keygen freezes the UI for seconds.
+  const pair = await crypto.subtle.generateKey(
+    { name: 'RSASSA-PKCS1-v1_5', modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: 'SHA-256' },
+    true,
+    ['sign', 'verify'],
   )
+  const pkcs8 = new Uint8Array(await crypto.subtle.exportKey('pkcs8', pair.privateKey))
+  const pem = forge.pem.encode({ type: 'PRIVATE KEY', body: String.fromCharCode(...pkcs8) })
+  const privateKey = forge.pki.privateKeyFromPem(pem) as import('node-forge').pki.rsa.PrivateKey
+  const publicKey = forge.pki.setRsaPublicKey(privateKey.n, privateKey.e)
   const cert = forge.pki.createCertificate()
   cert.publicKey = publicKey
   cert.serialNumber = `01${forge.util.bytesToHex(forge.random.getBytesSync(8))}`
