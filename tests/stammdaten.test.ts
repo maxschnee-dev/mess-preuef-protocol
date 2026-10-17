@@ -58,9 +58,13 @@ describe('planFill', () => {
   it('fills empty target fields directly, sets Name 1', () => {
     expect(planFill({ ...leer, name1: '' }, c)).toEqual({ conflict: false, patch: { name1: 'Muster AG', name2: 'Verwaltung', strasse: 'Bahnhofstr. 1', plzOrt: '3000 Bern' } })
   })
-  it('flags a conflict when Name 1 holds a different non-empty spelling', () => {
-    expect(planFill(leer, c).conflict).toBe(true)
+  it('treats a Name 1 that is part of the suggestion as the search text, not a conflict', () => {
+    expect(planFill(leer, c).conflict).toBe(false)
     expect(planFill({ ...leer, name1: 'muster ag' }, c).conflict).toBe(false)
+    expect(planFill({ ...leer, name1: 'ster' }, c).conflict).toBe(false)
+  })
+  it('flags a conflict when Name 1 holds a different name', () => {
+    expect(planFill({ ...leer, name1: 'Beispiel GmbH' }, c).conflict).toBe(true)
   })
   it('flags a conflict when a target field holds a different value', () => {
     expect(planFill({ ...leer, name1: 'Muster AG', strasse: 'Andere Str. 9' }, c).conflict).toBe(true)

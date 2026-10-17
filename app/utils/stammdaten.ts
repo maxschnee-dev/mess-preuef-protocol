@@ -61,12 +61,13 @@ export interface FillPlan {
 
 /**
  * What picking `company` would write into `partei` (Name 1, Name 2, Strasse,
- * PLZ/Ort; Art stays). Empty company fields are never written. Every field,
- * Name 1 included, is a conflict if it holds a different non-empty value.
+ * PLZ/Ort; Art stays). Empty company fields are never written. A field is a
+ * conflict if it holds a different non-empty value; Name 1 only if it isn't the
+ * search text that matched the suggestion (see `suggest`).
  */
 export function planFill(partei: Partei, company: Company): FillPlan {
   const patch: FillPlan['patch'] = { name1: company.name }
-  let conflict = !!partei.name1.trim() && norm(partei.name1) !== norm(company.name)
+  let conflict = !!partei.name1.trim() && !norm(company.name).includes(norm(partei.name1))
   for (const f of ['name2', 'strasse', 'plzOrt'] as const) {
     if (!company[f]) continue
     patch[f] = company[f]
