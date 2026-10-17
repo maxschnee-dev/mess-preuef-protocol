@@ -4,6 +4,7 @@
  */
 
 import { isGesperrt, isSignatureComplete, leereSignaturen, signPatch, unlockPatch, type Signatur, type Signaturen, type Unterzeichner } from './signaturen'
+import { isZertifikat, type Zertifikat } from './digitale-signatur'
 import { createProtokollForm, withFormDefaults, type ProtokollForm } from './protokoll-form'
 
 export const SCHEMA_VERSION = 1
@@ -82,6 +83,8 @@ export interface BackupData {
   selectedId: string | null
   companies: Company[]
   messgeraete: Messgeraet[]
+  /** Digitale Signatur certificate (key + cert); absent in older backups */
+  zertifikat: Zertifikat | null
 }
 
 export interface KeyValueStorage {
@@ -119,11 +122,12 @@ function parseBackup(json: string): BackupData {
     selectedId,
     companies: Array.isArray(raw.companies) ? raw.companies : [],
     messgeraete: Array.isArray(raw.messgeraete) ? raw.messgeraete : [],
+    zertifikat: isZertifikat(raw.zertifikat) ? raw.zertifikat : null,
   }
 }
 
 export function createProtokollStore(storage: KeyValueStorage) {
-  let data: BackupData = { schemaVersion: SCHEMA_VERSION, protokolle: [], selectedId: null, companies: [], messgeraete: [] }
+  let data: BackupData = { schemaVersion: SCHEMA_VERSION, protokolle: [], selectedId: null, companies: [], messgeraete: [], zertifikat: null }
   const listeners = new Set<() => void>()
 
   try {
@@ -143,6 +147,7 @@ export function createProtokollStore(storage: KeyValueStorage) {
     get selectedId() { return data.selectedId },
     get companies() { return data.companies },
     get messgeraete() { return data.messgeraete },
+    get zertifikat() { return data.zertifikat },
     get selected(): Protokoll | null { return data.protokolle.find((p) => p.id === data.selectedId) ?? null },
 
     /** Notified after every persisted change. Returns an unsubscribe function. */
@@ -202,6 +207,11 @@ export function createProtokollStore(storage: KeyValueStorage) {
     setStammdaten(s: { companies?: Company[]; messgeraete?: Messgeraet[] }) {
       if (s.companies) data.companies = s.companies
       if (s.messgeraete) data.messgeraete = s.messgeraete
+      commit()
+    },
+
+    setZertifikat(z: Zertifikat | null) {
+      data.zertifikat = z
       commit()
     },
 

@@ -18,7 +18,11 @@ type Node = Record<string, any>
 export interface PdfOptions {
   /** append the legend page (page 2) */
   legende?: boolean
+  /** adds the footer note that the PDF carries a Digitale Signatur */
+  digitalSigniert?: boolean
 }
+
+export const DIGITAL_SIGNIERT_HINWEIS = 'Digital signiert – jede Änderung macht die Signatur ungültig.'
 
 const TEAL = '#0f766e'
 const GREY = '#e5e7eb'
@@ -272,9 +276,17 @@ export function buildDocDefinition(p: Protokoll, options: PdfOptions = {}): DocD
       head: { fontSize: 6.5, bold: true, alignment: 'center', fillColor: GREY },
       cell: { fontSize: 7.5 },
     },
-    footer: (currentPage: number, pageCount: number): Node => ({
-      text: `Seite ${currentPage} von ${pageCount}`, alignment: 'right', fontSize: 8, margin: [24, 10, 24, 0],
-    }),
+    footer: (currentPage: number, pageCount: number): Node => {
+      const seite = `Seite ${currentPage} von ${pageCount}`
+      if (!options.digitalSigniert) return { text: seite, alignment: 'right', fontSize: 8, margin: [24, 10, 24, 0] }
+      return {
+        columns: [
+          { text: DIGITAL_SIGNIERT_HINWEIS, fontSize: 7, color: '#4b5563' },
+          { text: seite, alignment: 'right', fontSize: 8, width: 'auto' },
+        ],
+        margin: [24, 10, 24, 0],
+      }
+    },
     content,
   }
 }

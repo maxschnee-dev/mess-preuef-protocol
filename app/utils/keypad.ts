@@ -25,7 +25,6 @@ export const MESSWERT_REIHENFOLGE: readonly MesswertKey[] = ['schutzleiter', 'rI
 
 export const FELD_INFO: Record<StammKey | MesswertKey | 'netzspannung', FeldInfo> = {
   // Comma decimals, like the keypad's comma key
-
   leiterAnzahl: { label: 'Leiteranzahl', unit: '', schnellwerte: ['3', '5'] },
   leiterQuerschnitt: { label: 'Querschnitt', unit: 'mm²', schnellwerte: ['1,5', '2,5', '4', '6', '10', '16'] },
   ueberstromschutzIn: { label: 'Überstromschutz I_N', unit: 'A', schnellwerte: ['6', '10', '13', '16', '20', '25', '32', '40', '63'] },

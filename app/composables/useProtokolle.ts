@@ -1,5 +1,6 @@
 import { collectCompanies, collectMessgeraete } from '~/utils/stammdaten'
 import { createProtokollStore, type ProtokollStore } from '~/utils/protokoll-store'
+import type { Zertifikat } from '~/utils/digitale-signatur'
 import { isGesperrt, type Signatur, type Unterzeichner } from '~/utils/signaturen'
 
 let store: ProtokollStore | undefined
@@ -31,6 +32,8 @@ export function useProtokolle() {
     syncStammdaten,
     companies: computed(() => (revision.value, s.companies)),
     messgeraete: computed(() => (revision.value, s.messgeraete)),
+    zertifikat: computed(() => (revision.value, s.zertifikat)),
+    setZertifikat: (z: Zertifikat | null) => s.setZertifikat(z),
     protokolle: computed(() => (revision.value, s.protokolle)),
     selected: computed(() => (revision.value, s.selected)),
     selectedId: computed(() => (revision.value, s.selectedId)),
