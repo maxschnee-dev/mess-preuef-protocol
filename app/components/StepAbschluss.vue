@@ -20,7 +20,7 @@ function setKeineMaengel(value: boolean | 'indeterminate') {
     <!-- Unterschriften stay outside the fieldset: the unlock button must work on a locked Protokoll -->
     <fieldset :disabled="isLocked" class="min-w-0 space-y-4">
       <UCard>
-        <template #header><h2 class="font-semibold">Bemerkungen und Prüfung</h2></template>
+        <template #header><h2 class="text-xl font-bold">Bemerkungen und Prüfung</h2></template>
         <div class="space-y-4">
           <UFormField label="Bemerkungen">
             <UTextarea :model-value="selected.bemerkungen" :rows="3" class="w-full" @update:model-value="setText('bemerkungen', $event)" />
@@ -38,7 +38,7 @@ function setKeineMaengel(value: boolean | 'indeterminate') {
       </UCard>
 
       <UCard>
-        <template #header><h2 class="font-semibold">Prüfergebnis</h2></template>
+        <template #header><h2 class="text-xl font-bold">Prüfergebnis</h2></template>
         <UCheckbox :model-value="selected.pruefergebnis.keineMaengel" label="Keine Mängel festgestellt" @update:model-value="setKeineMaengel" />
         <UAlert
           v-if="selected.pruefergebnis.keineMaengel && verstoesse.anzahl"

@@ -22,12 +22,12 @@ function confirmRemove() {
   <UCard>
     <template #header>
       <div class="flex items-center justify-between gap-2">
-        <h2 class="font-semibold">Protokolle</h2>
+        <h2 class="text-xl font-bold">Protokolle</h2>
         <UButton icon="i-lucide-plus" label="Neu" @click="oeffnen(create().id)" />
       </div>
     </template>
     <p v-if="!protokolle.length" class="text-muted">Noch kein Protokoll vorhanden. Mit «Neu» ein Protokoll anlegen.</p>
-    <ul v-else class="divide-y divide-default">
+    <ul v-else class="divide-y-2 divide-ink">
       <li v-for="p in protokolle" :key="p.id" class="flex items-center gap-1 py-1">
         <button type="button" class="min-h-11 min-w-0 flex-1 truncate text-left font-medium hover:underline" @click="oeffnen(p.id)">{{ protokollLabel(p) }}</button>
         <UButton icon="i-lucide-copy" color="neutral" variant="ghost" aria-label="Duplizieren" @click="dupliziere(p.id)" />

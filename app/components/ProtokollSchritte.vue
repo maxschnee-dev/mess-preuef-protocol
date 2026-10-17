@@ -5,13 +5,13 @@ defineProps<{ protokollId: string }>()
 const route = useRoute()
 const aktiv = computed(() => route.path.split('/').filter(Boolean).pop())
 const linkClass = (active: boolean) => [
-  'flex min-h-11 items-center rounded-md px-2.5 text-sm whitespace-nowrap',
-  active ? 'bg-primary font-semibold text-inverted' : 'hover:bg-elevated',
+  'flex min-h-11 items-center rounded-sm px-3 text-base whitespace-nowrap',
+  active ? 'bg-tl-blue-fill font-bold text-ink ring-2 ring-inset ring-ink' : 'font-medium hover:bg-elevated',
 ]
 </script>
 
 <template>
-  <nav aria-label="Schritte" class="sticky top-0 z-20 -mx-4 overflow-x-auto border-b border-default bg-default px-4 sm:mx-0 sm:rounded-md sm:border">
+  <nav aria-label="Schritte" class="sticky top-0 z-20 -mx-4 overflow-x-auto border-b-2 border-ink bg-white px-4 sm:mx-0 sm:rounded-sm sm:border-2">
     <ol class="flex items-center gap-0.5 py-1">
       <li class="flex items-center gap-0.5">
         <NuxtLink to="/" :class="linkClass(false)">Protokolle</NuxtLink>

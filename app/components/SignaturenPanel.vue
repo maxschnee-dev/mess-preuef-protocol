@@ -30,7 +30,7 @@ function entsperren() {
 <template>
   <UCard v-if="selected">
     <template #header>
-      <h2 class="font-semibold">Unterschriften</h2>
+      <h2 class="text-xl font-bold">Unterschriften</h2>
     </template>
 
     <UAlert
@@ -48,10 +48,10 @@ function entsperren() {
 
     <div class="grid gap-6 md:grid-cols-2">
       <section v-for="who in WER" :key="who" class="space-y-3">
-        <h3 class="font-medium">{{ UNTERZEICHNER_LABELS[who] }}</h3>
+        <h3 class="text-lg font-bold">{{ UNTERZEICHNER_LABELS[who] }}</h3>
         <template v-if="isSignatureComplete(selected.signaturen[who])">
-          <img :src="selected.signaturen[who].bild" :alt="`Unterschrift ${UNTERZEICHNER_LABELS[who]}`" class="h-40 w-full rounded border border-default bg-white object-contain">
-          <p class="text-sm">{{ selected.signaturen[who].name }} · {{ selected.signaturen[who].datum }}</p>
+          <img :src="selected.signaturen[who].bild" :alt="`Unterschrift ${UNTERZEICHNER_LABELS[who]}`" class="h-40 w-full rounded-sm border-2 border-ink bg-white object-contain">
+          <p class="text-base font-medium">{{ selected.signaturen[who].name }} · {{ selected.signaturen[who].datum }}</p>
         </template>
         <template v-else>
           <UFormField label="Name">

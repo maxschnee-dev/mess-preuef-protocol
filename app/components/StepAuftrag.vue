@@ -69,7 +69,7 @@ function removeZeile(id: string) {
   <fieldset v-if="selected" :disabled="isLocked" class="min-w-0 space-y-4" @focusout="syncStammdaten">
     <ProtokollKopf />
   <UCard v-for="[who, titel, arten] in ([['auftraggeber', 'Auftraggeber', AUFTRAGGEBER_ARTEN], ['auftragnehmer', 'Auftragnehmer', AUFTRAGNEHMER_ARTEN]] as const)" :key="who">
-    <template #header><h2 class="font-semibold">{{ titel }}</h2></template>
+    <template #header><h2 class="text-xl font-bold">{{ titel }}</h2></template>
     <div class="grid gap-4 sm:grid-cols-2">
       <UFormField label="Art" class="sm:col-span-2">
         <USelect
@@ -82,10 +82,10 @@ function removeZeile(id: string) {
           :model-value="selected[who].name1" class="w-full" autocomplete="off"
           @focus="fokus = who" @blur="fokus = null" @update:model-value="setPartei(who, 'name1', $event)"
         />
-        <ul v-if="companyVorschlaege(who).length" class="absolute z-10 mt-1 w-full rounded-md border border-default bg-default shadow-lg">
+        <ul v-if="companyVorschlaege(who).length" class="absolute z-10 mt-1 w-full overflow-hidden rounded-sm border-2 border-ink bg-white shadow-lg">
           <li v-for="c in companyVorschlaege(who)" :key="c.name">
-            <button type="button" class="w-full px-3 py-2 text-left text-sm hover:bg-elevated" @mousedown.prevent="pickCompany(who, c)">
-              {{ c.name }}<span class="block text-xs text-muted">{{ [c.name2, c.strasse, c.plzOrt].filter(Boolean).join(', ') }}</span>
+            <button type="button" class="w-full px-3 py-2.5 text-left text-base font-medium hover:bg-elevated" @mousedown.prevent="pickCompany(who, c)">
+              {{ c.name }}<span class="block text-sm font-normal text-muted">{{ [c.name2, c.strasse, c.plzOrt].filter(Boolean).join(', ') }}</span>
             </button>
           </li>
         </ul>
@@ -97,7 +97,7 @@ function removeZeile(id: string) {
   </UCard>
 
   <UCard>
-    <template #header><h2 class="font-semibold">Installation</h2></template>
+    <template #header><h2 class="text-xl font-bold">Installation</h2></template>
     <div class="grid gap-4 sm:grid-cols-2">
       <UFormField v-for="[key, label] in installationFelder" :key="key" :label="label">
         <UInput :model-value="selected.installation[key]" class="w-full" @update:model-value="setSection('installation', key, $event)" />
@@ -106,7 +106,7 @@ function removeZeile(id: string) {
   </UCard>
 
   <UCard>
-    <template #header><h2 class="font-semibold">Kontrolle</h2></template>
+    <template #header><h2 class="text-xl font-bold">Kontrolle</h2></template>
     <div class="grid gap-4 sm:grid-cols-3">
       <UFormField v-for="[key, label] in kontrolleFelder" :key="key" :label="label">
         <UInput :model-value="selected.kontrolle[key]" class="w-full" @update:model-value="setSection('kontrolle', key, $event)" />
@@ -115,7 +115,7 @@ function removeZeile(id: string) {
   </UCard>
 
   <UCard>
-    <template #header><h2 class="font-semibold">Anlage / Anlageteil und Verbraucher</h2></template>
+    <template #header><h2 class="text-xl font-bold">Anlage / Anlageteil und Verbraucher</h2></template>
     <div class="space-y-3">
       <div v-for="z in selected.anlageteile" :key="z.id" class="grid grid-cols-[1fr_1fr_auto] items-end gap-2">
         <UFormField label="Anlage / Anlageteil"><UInput :model-value="z.anlageteil" class="w-full" @update:model-value="setZeile(z.id, 'anlageteil', $event)" /></UFormField>

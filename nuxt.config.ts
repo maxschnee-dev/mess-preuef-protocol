@@ -5,6 +5,8 @@ export default defineNuxtConfig({
   ssr: false,
   devtools: { enabled: false },
   modules: ['@nuxt/ui', '@vite-pwa/nuxt'],
+  // Light mode only: no dark variant, no system preference switching.
+  ui: { colorMode: false },
   css: ['~/assets/css/main.css'],
   app: {
     baseURL,
@@ -13,7 +15,7 @@ export default defineNuxtConfig({
       title: 'Mess- + Prüfprotokoll',
       meta: [
         { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-        { name: 'theme-color', content: '#0f766e' },
+        { name: 'theme-color', content: '#ffffff' },
       ],
       link: [
         { rel: 'icon', href: `${baseURL}favicon.ico`, sizes: '48x48' },
@@ -32,7 +34,7 @@ export default defineNuxtConfig({
       short_name: 'Prüfprotokoll',
       description: 'Mess- + Prüfprotokoll (VSEI 133-D) offline erfassen',
       lang: 'de',
-      theme_color: '#0f766e',
+      theme_color: '#ffffff',
       background_color: '#ffffff',
       display: 'standalone',
       start_url: baseURL,
