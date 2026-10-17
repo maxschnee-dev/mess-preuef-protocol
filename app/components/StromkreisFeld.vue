@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Stromkreis } from '~/utils/protokoll-store'
+import { pruefeStromkreis } from '~/utils/grenzwerte'
 import { RCD_ARTEN, UEBERSTROMSCHUTZ_ARTEN } from '~/utils/stromkreis'
 
 export type FeldKey = Exclude<keyof Stromkreis, 'id'>
@@ -18,6 +19,8 @@ const items = computed(() => {
   const arten = props.feld.select === 'rcd' ? RCD_ARTEN : UEBERSTROMSCHUTZ_ARTEN
   return [{ label: '–', value: '' }, ...arten]
 })
+/** Required boundary when this field is a Verstoss (ADR-0003), else undefined. */
+const verstoss = computed(() => (pruefeStromkreis(props.stromkreis) as Record<string, string | undefined>)[props.feld.key])
 const value = computed(() => props.stromkreis[props.feld.key] as string)
 const ariaLabel = computed(() => `${props.feld.label}${props.feld.unit ? ` (${props.feld.unit})` : ''}, Stromkreis ${props.stromkreis.nr}`)
 
@@ -27,6 +30,7 @@ function set(v: unknown) {
 </script>
 
 <template>
+  <div class="w-full">
   <USelect
     v-if="feld.select"
     :model-value="value"
@@ -43,10 +47,14 @@ function set(v: unknown) {
     class="w-full"
     :inputmode="feld.numeric ? 'decimal' : 'text'"
     :aria-label="ariaLabel"
+    :color="verstoss ? 'error' : undefined"
+    :highlight="!!verstoss"
     @update:model-value="set"
   >
     <template v-if="feld.unit" #trailing>
       <span class="text-xs text-muted">{{ feld.unit }}</span>
     </template>
   </UInput>
+  <p v-if="verstoss" class="mt-1 text-sm font-medium text-error" role="status">{{ verstoss }}</p>
+  </div>
 </template>

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { FeldDef } from './StromkreisFeld.vue'
+import { GG_ABSCHALTSTROM_HINWEIS, verstoesseDesProtokolls } from '~/utils/grenzwerte'
 import { addStromkreis, copyPrevious, moveStromkreis, removeStromkreis, updateStromkreis } from '~/utils/stromkreis'
 import type { Stromkreis } from '~/utils/protokoll-store'
 
@@ -45,6 +46,8 @@ function setList(list: Stromkreis[]) {
   if (selected.value) update(selected.value.id, { stromkreise: list })
 }
 const liste = computed(() => selected.value?.stromkreise ?? [])
+const verstoesse = computed(() => verstoesseDesProtokolls({ stromkreise: liste.value, netzspannung: '' }))
+const verstossText = (n: number) => `${n} ${n === 1 ? 'Verstoss' : 'Verstösse'}`
 const nrFeld: FeldDef = { key: 'nr', label: 'Nr.' }
 
 function patch(id: string, p: Partial<Omit<Stromkreis, 'id'>>) { setList(updateStromkreis(liste.value, id, p)) }
@@ -60,7 +63,17 @@ function confirmDelete() {
 
 <template>
   <section v-if="selected" class="space-y-4">
-    <h2 class="text-xl font-semibold">Stromkreise</h2>
+    <div class="flex flex-wrap items-center gap-3">
+      <h2 class="text-xl font-semibold">Stromkreise</h2>
+      <UBadge v-if="verstoesse.anzahl" color="error" size="lg" :label="verstossText(verstoesse.anzahl)" />
+    </div>
+    <UAlert
+      v-if="liste.some((s) => s.ueberstromschutzArt === 'gG')"
+      color="warning"
+      variant="subtle"
+      icon="i-lucide-triangle-alert"
+      :description="GG_ABSCHALTSTROM_HINWEIS"
+    />
 
     <!-- Mobile / Tablet hochkant: eine Karte pro Stromkreis -->
     <div class="space-y-4 lg:hidden">
@@ -71,6 +84,7 @@ function confirmDelete() {
               <StromkreisFeld :stromkreis="s" :feld="nrFeld" @update="patch(s.id, $event)" />
             </div>
             <span class="flex-1 font-semibold">Stromkreis</span>
+            <UBadge v-if="verstoesse.proStromkreis[s.id]" color="error" :label="verstossText(verstoesse.proStromkreis[s.id]!)" />
             <UButton icon="i-lucide-arrow-up" size="xl" variant="outline" color="neutral" aria-label="Nach oben" :disabled="i === 0" @click="move(s.id, -1)" />
             <UButton icon="i-lucide-arrow-down" size="xl" variant="outline" color="neutral" aria-label="Nach unten" :disabled="i === liste.length - 1" @click="move(s.id, 1)" />
             <UButton icon="i-lucide-trash-2" size="xl" variant="outline" color="error" aria-label="Stromkreis löschen" @click="deleteId = s.id" />
