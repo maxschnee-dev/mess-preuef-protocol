@@ -48,3 +48,17 @@ export function migriereSignatur<T extends { kopf: { mitarbeiter: string }, gesp
     : leereSignatur()
   return { ...rest, signatur, gesperrt: stored.gesperrt && !!gefunden }
 }
+
+export interface Masse {
+  breite: number
+  hoehe: number
+}
+
+/**
+ * Where an existing drawing goes when the pad changes size (e.g. phone rotated): uniform scale so
+ * nothing is distorted or cut off, centred in the new pad. Sizes are in CSS pixels.
+ */
+export function einpassen(alt: Masse, neu: Masse): { faktor: number, dx: number, dy: number } {
+  const faktor = Math.min(neu.breite / alt.breite, neu.hoehe / alt.hoehe)
+  return { faktor, dx: (neu.breite - alt.breite * faktor) / 2, dy: (neu.hoehe - alt.hoehe * faktor) / 2 }
+}

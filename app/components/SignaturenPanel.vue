@@ -9,24 +9,20 @@ const heute = () => new Date().toISOString().slice(0, 10)
 // until the user types their own; `nameEigen` = null means "not overridden".
 const nameEigen = ref<string | null>(null)
 const datum = ref(heute())
-const bild = ref('')
 const entwurf = computed(() => ({
   ...entwurfSignatur(selected.value?.kopf ?? { mitarbeiter: '' }, datum.value),
   name: nameEigen.value ?? selected.value?.kopf.mitarbeiter ?? '',
-  bild: bild.value,
 }))
-const padKey = ref(0)
+const dialogOpen = ref(false)
 const confirmOpen = ref(false)
 
 function zuruecksetzen() {
   nameEigen.value = null
   datum.value = heute()
-  bild.value = ''
-  padKey.value++
 }
-function unterschreiben() {
+function unterschreiben(bild: string) {
   const p = selected.value
-  if (p && sign(p.id, entwurf.value)) zuruecksetzen()
+  if (p && sign(p.id, { ...entwurf.value, bild })) zuruecksetzen()
 }
 function entsperren() {
   const p = selected.value
@@ -69,8 +65,9 @@ function entsperren() {
         <UFormField label="Datum">
           <UInput v-model="datum" type="date" class="w-full" />
         </UFormField>
-        <SignaturPad :key="padKey" @change="bild = $event" />
-        <UButton label="Unterschreiben und sperren" :disabled="!isSignatureComplete(entwurf)" @click="unterschreiben" />
+        <UButton label="Unterschreiben" icon="i-lucide-pen-line" @click="dialogOpen = true" />
+        <p class="text-sm text-muted">Mit „Übernehmen“ im Dialog wird das Protokoll unterschrieben und gesperrt.</p>
+        <SignaturDialog v-model:open="dialogOpen" @uebernehmen="unterschreiben" />
       </template>
     </section>
 

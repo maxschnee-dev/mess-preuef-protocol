@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createProtokollStore, type KeyValueStorage } from '../app/utils/protokoll-store'
-import { entwurfSignatur, isSignatureComplete, isGesperrt } from '../app/utils/signaturen'
+import { einpassen, entwurfSignatur, isSignatureComplete, isGesperrt } from '../app/utils/signaturen'
 
 function fakeStorage(): KeyValueStorage {
   const data = new Map<string, string>()
@@ -142,5 +142,21 @@ describe('Protokolle mit zwei Unterschriften (v2, vor #23)', () => {
 
   it('leaves an unlocked Protokoll unsigned', () => {
     expect(laden({ signaturen: { kontrolleur: leer, unternehmer: leer } }).signatur).toEqual(leer)
+  })
+})
+
+describe('Zeichnung beim Drehen des Geräts einpassen', () => {
+  it('keeps the size when the pad does not change', () => {
+    expect(einpassen({ breite: 300, hoehe: 200 }, { breite: 300, hoehe: 200 })).toEqual({ faktor: 1, dx: 0, dy: 0 })
+  })
+
+  it('scales uniformly and centres when portrait turns to landscape', () => {
+    // 300x600 -> 600x300: height limits, factor 0.5, drawing is 150 wide and centred horizontally
+    expect(einpassen({ breite: 300, hoehe: 600 }, { breite: 600, hoehe: 300 })).toEqual({ faktor: 0.5, dx: 225, dy: 0 })
+  })
+
+  it('scales up and centres vertically when the pad gets wider only', () => {
+    // 200x100 -> 400x400: width limits, factor 2, drawing is 400x200 centred vertically
+    expect(einpassen({ breite: 200, hoehe: 100 }, { breite: 400, hoehe: 400 })).toEqual({ faktor: 2, dx: 0, dy: 100 })
   })
 })
