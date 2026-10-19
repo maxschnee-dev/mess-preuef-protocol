@@ -1,13 +1,10 @@
 /**
  * Maps a Protokoll to a pdfmake document definition (ADR-0002). Pure and framework-free;
  * rendering/sharing lives in `~/utils/pdf-export`. Layout: A4 landscape (the Stromkreis table has
- * 16 columns), VSEI 133-D page-1 order, no association logos. Verstoesse are not rendered.
+ * 16 columns), Kopf of the Equans Erstprüfungsprotokoll first. Verstoesse are not rendered.
  */
-import {
-  AUFTRAGGEBER_ARTEN, AUFTRAGNEHMER_ARTEN, FUNKTIONSPRUEFUNG_ITEMS, SICHTPRUEFUNG_ITEMS,
-  type Partei,
-} from './protokoll-form'
-import type { Protokoll, Stromkreis } from './protokoll-store'
+import { ELEKTRO_INSTALLATEUR } from './protokoll-form'
+import { protokollLabel, type Protokoll, type Stromkreis } from './protokoll-store'
 import type { Signatur } from './signaturen'
 import { RCD_ARTEN, UEBERSTROMSCHUTZ_ARTEN } from './stromkreis'
 
@@ -32,10 +29,13 @@ export function formatDatum(iso: string): string {
   return m ? `${m[3]}.${m[2]}.${m[1]}` : iso
 }
 
-export function pdfFilename(p: Pick<Protokoll, 'kontrolldatum' | 'ortDerInstallation'>): string {
-  const ort = p.ortDerInstallation.trim().replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-+|-+$/g, '')
-  const datum = /^\d{4}-\d{2}-\d{2}$/.test(p.kontrolldatum) ? p.kontrolldatum : ''
-  return `${[datum, ort].filter(Boolean).join('_') || 'Protokoll'}.pdf`
+/** "Ausführungsort_Verteilung_Zeitraum" in a file-safe way */
+export function pdfFilename(p: Pick<Protokoll, 'kopf'>): string {
+  const k = p.kopf
+  const teile = [k.ausfuehrungsort, k.verteilung, k.zeitraumDerMessungen]
+    .map((t) => t.trim().replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-+|-+$/g, ''))
+    .filter(Boolean)
+  return `${teile.join('_') || 'Protokoll'}.pdf`
 }
 
 // ---- building blocks -------------------------------------------------------
@@ -58,31 +58,6 @@ function section(title: string, body: Node[] | Node): Node {
     },
     layout: boxLayout,
   }
-}
-
-function checkbox(checked: boolean, label: string): Node {
-  const s = 8
-  const canvas: Node[] = [{ type: 'rect', x: 0.5, y: 0.5, w: s, h: s, lineWidth: 0.8, lineColor: '#111827' }]
-  if (checked) {
-    canvas.push(
-      { type: 'line', x1: 1.5, y1: 1.5, x2: s - 0.5, y2: s - 0.5, lineWidth: 1.2, lineColor: '#111827' },
-      { type: 'line', x1: s - 0.5, y1: 1.5, x2: 1.5, y2: s - 0.5, lineWidth: 1.2, lineColor: '#111827' },
-    )
-  }
-  return {
-    columns: [{ canvas, width: s + 2 }, { text: label, style: 'value', width: '*' }],
-    columnGap: 3, margin: [0, 1, 0, 1], checkbox: checked, label,
-  }
-}
-
-function parteiBlock(titel: string, arten: readonly { value: string; label: string }[], p: Partei): Node {
-  return section(titel, [
-    { columns: arten.map((a) => checkbox(p.art === a.value, a.label)), columnGap: 6 },
-    field('Name 1', p.name1),
-    field('Name 2', p.name2),
-    field('Strasse', p.strasse),
-    field('PLZ / Ort', p.plzOrt),
-  ])
 }
 
 // ---- Stromkreis table ------------------------------------------------------
@@ -180,74 +155,20 @@ function legende(): Node[] {
 // ---- document --------------------------------------------------------------
 
 export function buildDocDefinition(p: Protokoll, options: PdfOptions = {}): DocDefinition {
-  const i = p.installation
+  const k = p.kopf
+  const zeile = (...felder: Node[]): Node => ({ columns: felder, columnGap: 8 })
   const content: Node[] = [
     {
       columns: [
-        { text: 'Mess- + Prüfprotokoll', fontSize: 16, bold: true, color: TEAL, width: '*' },
-        { text: 'VSEI 133-D', fontSize: 9, alignment: 'right', width: 'auto' },
+        { text: 'Erstprüfungs-Protokoll', fontSize: 16, bold: true, color: TEAL, width: '*' },
+        { text: ELEKTRO_INSTALLATEUR, fontSize: 9, alignment: 'right', width: 'auto' },
       ],
       margin: [0, 0, 0, 4],
     },
-    section('Kontrolle', [{
-      columns: [
-        field('Kontrolldatum', formatDatum(p.kontrolldatum)),
-        field('Ort der Installation', p.ortDerInstallation),
-        field('Durchgeführte Kontrolle', p.kontrolle.durchgefuehrteKontrolle),
-        field('Kontrollperiode', p.kontrolle.kontrollperiode),
-        field('Kontrollumfang', p.kontrolle.kontrollumfang),
-      ],
-      columnGap: 8,
-    }]),
-    { text: ' ', fontSize: 3 },
-    {
-      columns: [
-        parteiBlock('Auftraggeber', AUFTRAGGEBER_ARTEN, p.auftraggeber),
-        parteiBlock('Auftragnehmer', AUFTRAGNEHMER_ARTEN, p.auftragnehmer),
-        section('Installation', [
-          { columns: [field('Gebäudeart', i.gebaeudeart), field('Objekt-Nr.', i.objektNr)], columnGap: 6 },
-          { columns: [field('Inst.-Anzeige', i.instAnzeige), field('Anlage', i.anlage)], columnGap: 6 },
-          { columns: [field('Stromkunde', i.stromkunde), field('Stockwerk / Raum', i.stockwerkRaum)], columnGap: 6 },
-          { columns: [field('Zähler-Nr.', i.zaehlerNr), field('Anlage-Nr.', i.anlageNr)], columnGap: 6 },
-        ]),
-      ],
-      columnGap: 6,
-    },
-    { text: ' ', fontSize: 3 },
-    section('Anlage / Anlageteil und Verbraucher', {
-      table: {
-        widths: ['*', '*'],
-        body: [
-          [headCell('Anlage / Anlageteil'), headCell('Verbraucher')],
-          ...(p.anlageteile.length ? p.anlageteile : [{ anlageteil: ' ', verbraucher: ' ' }]).map((z) => [cell(z.anlageteil), cell(z.verbraucher)]),
-        ],
-      },
-      layout: boxLayout,
-    }),
-    { text: ' ', fontSize: 3 },
-    {
-      columns: [
-        section('Sichtprüfung', [
-          ...SICHTPRUEFUNG_ITEMS.map((it) => checkbox(!!p.sichtpruefung.checks[it.key], it.label)),
-          { columns: [field('Schutzsystem', p.sichtpruefung.schutzSystem), field('Erder', p.sichtpruefung.erder)], columnGap: 6, margin: [0, 3, 0, 0] },
-        ]),
-        section('Funktionsprüfung', [
-          ...FUNKTIONSPRUEFUNG_ITEMS.map((it) => checkbox(!!p.funktionspruefung.checks[it.key], it.label)),
-          field('Netzspannung L–N', p.netzspannung),
-        ]),
-        section('Messgeräte', [
-          ...(p.messgeraete.length ? p.messgeraete : [' ']).map((m) => ({ text: m, style: 'value', margin: [0, 1, 0, 1] })),
-          field('Prüfung nach', p.pruefungNach),
-          field('Schaltgerätekombination', p.schaltgeraetekombination),
-        ]),
-      ],
-      columnGap: 6,
-    },
-    { text: ' ', fontSize: 3 },
-    section('Prüfergebnis', [
-      checkbox(p.pruefergebnis.keineMaengel, 'Keine Mängel festgestellt'),
-      field('Bemerkungen', p.bemerkungen),
-      field('Dokumentation', p.dokumentation),
+    section('Kopf', [
+      zeile(field('Stromkunde', k.stromkunde), field('Interne Auftragsnummer', k.interneAuftragsnummer), field('Installations-Anzeige Nr.', k.installationsAnzeigeNr), field('Zähler Nummer', k.zaehlerNummer)),
+      zeile(field('Ausführungsort', k.ausfuehrungsort), field('Verteilung', k.verteilung), field('Ausgeführte Arbeiten', k.ausgefuehrteArbeiten)),
+      zeile(field('Verwendetes Messgerät', k.verwendetesMessgeraet), field('Zeitraum der Messungen', k.zeitraumDerMessungen), field('Mitarbeiter', k.mitarbeiter)),
     ]),
     { text: 'Stromkreise', style: 'sectionTitle', fontSize: 11, margin: [0, 8, 0, 3] },
     stromkreisTable(p.stromkreise),
@@ -267,7 +188,7 @@ export function buildDocDefinition(p: Protokoll, options: PdfOptions = {}): DocD
     pageSize: 'A4',
     pageOrientation: 'landscape',
     pageMargins: [24, 24, 24, 34],
-    info: { title: `Mess- + Prüfprotokoll ${formatDatum(p.kontrolldatum)} ${p.ortDerInstallation}`.trim() },
+    info: { title: `Erstprüfungs-Protokoll ${protokollLabel(p)}` },
     defaultStyle: { font: 'Roboto', fontSize: 8 },
     styles: {
       label: { fontSize: 6.5, color: '#4b5563' },

@@ -71,14 +71,14 @@ describe('Signaturen und Sperre', () => {
     expect(store.update(p.id, { ortDerInstallation: 'Thun' })).toBe(true)
   })
 
-  it('keeps the lock after reload and defaults old data to unlocked', () => {
+  it('keeps the lock after reload and defaults data without signature fields to unlocked', () => {
     const storage = fakeStorage()
     const store = createProtokollStore(storage)
     const p = store.create()
     store.sign(p.id, 'kontrolleur', sig)
     expect(createProtokollStore(storage).selected!.gesperrt).toBe(true)
 
-    const old = JSON.stringify({ protokolle: [{ id: 'x', ortDerInstallation: 'Alt' }] })
+    const old = JSON.stringify({ schemaVersion: 2, protokolle: [{ id: 'x' }] })
     const imported = createProtokollStore(fakeStorage())
     imported.importJson(old)
     expect(imported.selected!.gesperrt).toBe(false)

@@ -1,16 +1,21 @@
 import { describe, expect, it } from 'vitest'
-import { isStepKey, neighbours, stepFromPath, stepPath, stromkreisPath } from '../app/utils/steps'
+import { STEPS, isStepKey, neighbours, stepFromPath, stepPath, stromkreisPath } from '../app/utils/steps'
 
 describe('steps', () => {
   it('knows its neighbours', () => {
-    expect(neighbours('auftrag')).toEqual({ prev: null, next: 'pruefungen' })
-    expect(neighbours('stromkreise')).toEqual({ prev: 'pruefungen', next: 'abschluss' })
+    expect(neighbours('kopf')).toEqual({ prev: null, next: 'stromkreise' })
+    expect(neighbours('stromkreise')).toEqual({ prev: 'kopf', next: 'abschluss' })
     expect(neighbours('abschluss')).toEqual({ prev: 'stromkreise', next: null })
   })
   it('validates keys and builds paths', () => {
     expect(isStepKey('abschluss')).toBe(true)
     expect(isStepKey('foo')).toBe(false)
-    expect(stepPath('abc', 'auftrag')).toBe('/protokoll/abc/auftrag')
+    expect(stepPath('abc', 'kopf')).toBe('/protokoll/abc/kopf')
+  })
+  it('has exactly Kopf, Stromkreise and Abschluss', () => {
+    expect(STEPS.map((s) => s.key)).toEqual(['kopf', 'stromkreise', 'abschluss'])
+    expect(isStepKey('auftrag')).toBe(false)
+    expect(isStepKey('pruefungen')).toBe(false)
   })
   it('derives the step from sub-routes', () => {
     expect(stepFromPath('/protokoll/abc/stromkreise')).toBe('stromkreise')

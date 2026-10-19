@@ -1,15 +1,15 @@
 <script setup lang="ts">
-import { letzterAuftragnehmer } from '~/utils/digitale-signatur'
+import { ELEKTRO_INSTALLATEUR } from '~/utils/protokoll-form'
 import { createZertifikat } from '~/utils/pdf-sign'
 
-const { zertifikat, setZertifikat, protokolle } = useProtokolle()
+const { zertifikat, setZertifikat } = useProtokolle()
 const toast = useToast()
 const open = ref(false)
 const name = ref('')
 const busy = ref(false)
 
 function dialogOeffnen() {
-  name.value = letzterAuftragnehmer(protokolle.value)
+  name.value = ELEKTRO_INSTALLATEUR
   open.value = true
 }
 

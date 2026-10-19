@@ -20,27 +20,28 @@ const tableWith = (doc: unknown, header: string) =>
   walk((doc as Node).content).find((n) => n.table && JSON.stringify(n.table.body[0]).includes(header))!
 
 function filled(): Protokoll {
-  const p: Protokoll = { ...createProtokoll(), kontrolldatum: '2026-10-01', ortDerInstallation: 'Musterweg 3, Bern' }
-  p.auftraggeber = { art: 'eigentuemer', name1: 'Muster AG', name2: '', strasse: 'Hauptstr. 1', plzOrt: '3000 Bern' }
-  p.installation.gebaeudeart = 'Wohnhaus'
-  p.netzspannung = '230/400 V'
-  p.bemerkungen = 'Alles gut'
-  p.messgeraete = ['Fluke 1664']
-  p.sichtpruefung.checks.potentialausgleich = true
+  const p = createProtokoll()
+  p.kopf = {
+    stromkunde: 'Muster AG', interneAuftragsnummer: 'A-4711', installationsAnzeigeNr: 'IA-77', zaehlerNummer: '55512',
+    ausfuehrungsort: 'Musterweg 3, Bern', verteilung: 'HV 1', ausgefuehrteArbeiten: 'Neuinstallation',
+    verwendetesMessgeraet: 'Fluke 1663 / Erd-Tester ET15', zeitraumDerMessungen: '14.–16.10.2026', mitarbeiter: 'Hans Muster',
+  }
   return p
 }
 
 describe('buildDocDefinition', () => {
-  it('prints the header values', () => {
+  it('prints the Kopf values', () => {
     const t = texts(buildDocDefinition(filled()))
-    expect(t).toContain('Muster AG')
-    expect(t).toContain('3000 Bern')
-    expect(t).toContain('Wohnhaus')
-    expect(t).toContain('01.10.2026')
-    expect(t).toContain('Musterweg 3, Bern')
-    expect(t).toContain('230/400 V')
-    expect(t).toContain('Fluke 1664')
-    expect(t).toContain('Alles gut')
+    for (const v of ['Muster AG', 'A-4711', 'IA-77', '55512', 'Musterweg 3, Bern', 'HV 1', 'Neuinstallation', 'Fluke 1663 / Erd-Tester ET15', '14.–16.10.2026', 'Hans Muster']) {
+      expect(t).toContain(v)
+    }
+  })
+
+  it('leaves out the removed VSEI sections', () => {
+    const json = JSON.stringify(buildDocDefinition(filled()))
+    for (const w of ['VSEI', 'Auftraggeber', 'Auftragnehmer', 'Kontrolldatum', 'Sichtprüfung', 'Funktionsprüfung', 'Prüfergebnis', 'Anlageteil']) {
+      expect(json).not.toContain(w)
+    }
   })
 
   it('is landscape A4 with a "Seite x von y" footer', () => {
@@ -48,17 +49,6 @@ describe('buildDocDefinition', () => {
     expect(doc.pageSize).toBe('A4')
     expect(doc.pageOrientation).toBe('landscape')
     expect(doc.footer(2, 5)).toMatchObject({ text: expect.stringContaining('Seite 2 von 5') })
-  })
-
-  it('draws a checked and an unchecked box for Sichtprüfung items', () => {
-    const doc = buildDocDefinition(filled())
-    const boxes = walk((doc as Node).content).filter((n) => n.checkbox !== undefined)
-    const byLabel = (label: string) => boxes.find((b) => b.label === label)!
-    expect(byLabel('Potentialausgleich').checkbox).toBe(true)
-    expect(byLabel('Brandschutz, Abschottungen').checkbox).toBe(false)
-    // a checked box has strokes (an X), an unchecked one only the frame
-    const lines = (b: Node) => walk(b.columns).filter((n) => n.type === 'line').length
-    expect(lines(byLabel('Potentialausgleich'))).toBeGreaterThan(lines(byLabel('Brandschutz, Abschottungen')))
   })
 
   it('lists all 25 Stromkreise in a table whose header repeats on new pages', () => {
@@ -99,8 +89,8 @@ describe('buildDocDefinition', () => {
 })
 
 describe('pdfFilename', () => {
-  it('combines Kontrolldatum and Ort in a file-safe way', () => {
-    expect(pdfFilename(filled())).toBe('2026-10-01_Musterweg-3-Bern.pdf')
+  it('combines Ausführungsort, Verteilung and Zeitraum in a file-safe way', () => {
+    expect(pdfFilename(filled())).toBe('Musterweg-3-Bern_HV-1_14-16-10-2026.pdf')
     expect(pdfFilename(createProtokoll())).toBe('Protokoll.pdf')
   })
 })

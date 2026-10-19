@@ -11,9 +11,9 @@ async function loadForge() {
 }
 
 /** New RSA-2048 key pair + self-signed certificate valid for 20 years. */
-export async function createZertifikat(name1: string): Promise<Zertifikat> {
+export async function createZertifikat(name: string): Promise<Zertifikat> {
   const forge = await loadForge()
-  const name = zertifikatName(name1)
+  const cn = zertifikatName(name)
   // WebCrypto generates the key natively and off the main thread; forge's pure-JS keygen freezes the UI for seconds.
   const pair = await crypto.subtle.generateKey(
     { name: 'RSASSA-PKCS1-v1_5', modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: 'SHA-256' },
@@ -31,7 +31,7 @@ export async function createZertifikat(name1: string): Promise<Zertifikat> {
   cert.validity.notBefore = new Date(now.getTime() - 24 * 3600 * 1000)
   cert.validity.notAfter = new Date(now.getTime())
   cert.validity.notAfter.setFullYear(now.getFullYear() + 20)
-  const attrs = [{ name: 'commonName', value: name }]
+  const attrs = [{ name: 'commonName', value: cn }]
   cert.setSubject(attrs)
   cert.setIssuer(attrs)
   cert.setExtensions([
@@ -40,7 +40,7 @@ export async function createZertifikat(name1: string): Promise<Zertifikat> {
   ])
   cert.sign(privateKey, forge.md.sha256.create())
   return {
-    name,
+    name: cn,
     certPem: forge.pki.certificateToPem(cert),
     keyPem: forge.pki.privateKeyToPem(privateKey),
     erstellt: now.toISOString(),

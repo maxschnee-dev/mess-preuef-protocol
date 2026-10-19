@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { letzterAuftragnehmer, type Zertifikat } from '../app/utils/digitale-signatur'
+import { type Zertifikat } from '../app/utils/digitale-signatur'
 import { createProtokollStore, type KeyValueStorage } from '../app/utils/protokoll-store'
 
 function fakeStorage(): KeyValueStorage {
@@ -42,11 +42,5 @@ describe('Zertifikat im Backup', () => {
     const bad = createProtokollStore(fakeStorage())
     bad.importJson(JSON.stringify({ protokolle: [], zertifikat: { name: 'x' } }))
     expect(bad.zertifikat).toBeNull()
-  })
-
-  it('proposes the most recent non-empty Auftragnehmer name', () => {
-    const p = (name1: string) => ({ auftragnehmer: { name1 } })
-    expect(letzterAuftragnehmer([p('Alt AG'), p('Neu AG'), p(' ')])).toBe('Neu AG')
-    expect(letzterAuftragnehmer([])).toBe('')
   })
 })

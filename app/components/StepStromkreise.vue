@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { GG_ABSCHALTSTROM_HINWEIS, verstoesseDerStromkreise } from '~/utils/grenzwerte'
+import { GG_ABSCHALTSTROM_HINWEIS, pruefeNetzspannung, verstoesseDerStromkreise } from '~/utils/grenzwerte'
 import type { Stromkreis } from '~/utils/protokoll-store'
 import { addStromkreis, clampIndex, copyPrevious, moveStromkreis, parseStromkreisNr, removeStromkreis, updateStromkreis } from '~/utils/stromkreis'
 import { stepPath, stromkreisPath } from '~/utils/steps'
@@ -7,6 +7,8 @@ import { stepPath, stromkreisPath } from '~/utils/steps'
 // `nr` = 1-based route param; absent on /stromkreise (redirects to the first Stromkreis).
 const props = defineProps<{ nr?: string }>()
 const { selected, update, isLocked } = useProtokolle()
+const keypad = useKeypad()
+const netzPruefung = computed(() => pruefeNetzspannung(selected.value?.netzspannung ?? ''))
 
 const id = computed(() => selected.value?.id ?? '')
 const liste = computed(() => selected.value?.stromkreise ?? [])
@@ -71,6 +73,19 @@ const chipClass = (aktiv: boolean, verstoss: boolean) => [
       <UBadge v-if="verstoesse.anzahl" color="error" size="lg" :label="verstossText(verstoesse.anzahl)" />
     </div>
     <UAlert v-if="hatGG" color="warning" variant="subtle" icon="i-lucide-triangle-alert" :description="GG_ABSCHALTSTROM_HINWEIS" />
+
+    <fieldset :disabled="isLocked" class="min-w-0">
+      <MesswertKarte
+        class="max-w-xs"
+        label="Netzspannung L–N"
+        unit="V"
+        :model-value="selected.netzspannung"
+        :pruefung="netzPruefung"
+        keypad-key="netzspannung"
+        :aktiv="keypad.target.value?.kind === 'netz'"
+        @open="keypad.open({ kind: 'netz' })"
+      />
+    </fieldset>
 
     <!-- Navigation stays usable on a locked Protokoll; only editing is disabled -->
     <div class="flex items-center gap-1 overflow-x-auto py-1" role="tablist" aria-label="Stromkreise">

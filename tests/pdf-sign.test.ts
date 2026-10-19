@@ -45,14 +45,14 @@ describe('Digitale Signatur', () => {
     cert = forge.pki.certificateFromPem(z.certPem)
   }, 60_000)
 
-  it('creates a self-signed certificate with the Auftragnehmer as CN', () => {
+  it('creates a self-signed certificate with the given name as CN', () => {
     expect(z.name).toBe('Muster Elektro AG')
     expect(cert.subject.getField('CN').value).toBe('Muster Elektro AG')
     expect(cert.issuer.getField('CN').value).toBe('Muster Elektro AG')
     expect(cert.verify(cert)).toBe(true)
   })
 
-  it('falls back to a generic CN when the Auftragnehmer is empty', async () => {
+  it('falls back to a generic CN when the name is empty', async () => {
     expect((await createZertifikat('  ')).name).toBe('Mess- + Prüfprotokoll')
   }, 60_000)
 
