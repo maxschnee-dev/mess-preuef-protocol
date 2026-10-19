@@ -1,6 +1,6 @@
 ---
 name: unslop
-description: Cut AI tells from any writing. Use when explaining a complex topic, or when you want to make your writing more direct and human. This skill scans for AI patterns and rewrites them to preserve meaning and tone.
+description: Cut AI tells from any writing. Use when explaining a complex topic, or when you want to make your writing more direct and human. This skill scans for AI patterns and rewrites them to preserve meaning and tone. Must use always
 disable-model-invocation: false
 ---
 
