@@ -173,7 +173,7 @@ describe('buildDocDefinition', () => {
   it('embeds signature images only when signed', () => {
     const p = filled()
     expect(walk((buildDocDefinition(p) as Node).content).some((n) => n.image)).toBe(false)
-    p.signaturen.kontrolleur = { name: 'Hans Muster', datum: '2026-10-02', bild: PNG }
+    p.signatur = { name: 'Hans Muster', datum: '2026-10-02', bild: PNG }
     const doc = buildDocDefinition(p)
     expect(walk((doc as Node).content).filter((n) => n.image === PNG)).toHaveLength(1)
     expect(texts(doc)).toContain('Hans Muster')

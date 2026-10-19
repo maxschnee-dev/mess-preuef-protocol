@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createProtokollStore, type KeyValueStorage } from '../app/utils/protokoll-store'
-import { isSignatureComplete, isGesperrt } from '../app/utils/signaturen'
+import { entwurfSignatur, isSignatureComplete, isGesperrt } from '../app/utils/signaturen'
 
 function fakeStorage(): KeyValueStorage {
   const data = new Map<string, string>()
@@ -13,85 +13,134 @@ function fakeStorage(): KeyValueStorage {
 const PNG = 'data:image/png;base64,AAAA'
 const sig = { name: 'Max Muster', datum: '2026-10-01', bild: PNG }
 
-describe('Signaturen und Sperre', () => {
+describe('Unterschrift und Sperre', () => {
   it('starts unsigned and unlocked', () => {
     const p = createProtokollStore(fakeStorage()).create()
     expect(p.gesperrt).toBe(false)
-    expect(p.signaturen.kontrolleur).toEqual({ name: '', datum: '', bild: '' })
-    expect(p.signaturen.unternehmer).toEqual({ name: '', datum: '', bild: '' })
+    expect(p.signatur).toEqual({ name: '', datum: '', bild: '' })
+    expect('signaturen' in p).toBe(false)
   })
 
   it('signing locks the Protokoll and stores name, Datum and PNG data URL', () => {
     const store = createProtokollStore(fakeStorage())
     const p = store.create()
-    expect(store.sign(p.id, 'kontrolleur', sig)).toBe(true)
+    expect(store.sign(p.id, sig)).toBe(true)
     expect(store.selected!.gesperrt).toBe(true)
-    expect(store.selected!.signaturen.kontrolleur).toEqual(sig)
+    expect(store.selected!.signatur).toEqual(sig)
     expect(isGesperrt(store.selected)).toBe(true)
   })
 
-  it('allows the second signature while locked and stays locked', () => {
+  it('signing again replaces the Unterschrift and stays locked', () => {
     const store = createProtokollStore(fakeStorage())
     const p = store.create()
-    store.sign(p.id, 'kontrolleur', sig)
+    store.sign(p.id, sig)
     const zweite = { ...sig, name: 'Erika Beispiel' }
-    expect(store.sign(p.id, 'unternehmer', zweite)).toBe(true)
+    expect(store.sign(p.id, zweite)).toBe(true)
     expect(store.selected!.gesperrt).toBe(true)
-    expect(store.selected!.signaturen.kontrolleur).toEqual(sig)
-    expect(store.selected!.signaturen.unternehmer).toEqual(zweite)
+    expect(store.selected!.signatur).toEqual(zweite)
   })
 
   it('refuses a signature without drawing', () => {
     const store = createProtokollStore(fakeStorage())
     const p = store.create()
-    expect(store.sign(p.id, 'kontrolleur', { ...sig, bild: '' })).toBe(false)
+    expect(store.sign(p.id, { ...sig, bild: '' })).toBe(false)
     expect(store.selected!.gesperrt).toBe(false)
     expect(isSignatureComplete({ ...sig, bild: '' })).toBe(false)
+  })
+
+  it('takes the Mitarbeiter from the Kopf when the signer name is empty', () => {
+    const store = createProtokollStore(fakeStorage())
+    const p = store.create()
+    store.update(p.id, { kopf: { ...p.kopf, mitarbeiter: 'Hans Muster' } })
+    store.sign(p.id, { ...sig, name: '  ' })
+    expect(store.selected!.signatur.name).toBe('Hans Muster')
+  })
+
+  it('pre-fills the draft name from the Mitarbeiter of the Kopf and today as Datum', () => {
+    const p = createProtokollStore(fakeStorage()).create()
+    p.kopf.mitarbeiter = 'Hans Muster'
+    expect(entwurfSignatur(p.kopf, '2026-10-19')).toEqual({ name: 'Hans Muster', datum: '2026-10-19', bild: '' })
   })
 
   it('ignores updates on a locked Protokoll', () => {
     const store = createProtokollStore(fakeStorage())
     const p = store.create()
-    store.update(p.id, { ortDerInstallation: 'Bern' })
-    store.sign(p.id, 'unternehmer', sig)
-    expect(store.update(p.id, { ortDerInstallation: 'Thun' })).toBe(false)
-    expect(store.selected!.ortDerInstallation).toBe('Bern')
+    store.update(p.id, { netzspannung: '230' })
+    store.sign(p.id, sig)
+    expect(store.update(p.id, { netzspannung: '240' })).toBe(false)
+    expect(store.selected!.netzspannung).toBe('230')
   })
 
-  it('unlocking clears both signatures and allows edits again', () => {
+  it('unlocking clears the Unterschrift and allows edits again', () => {
     const store = createProtokollStore(fakeStorage())
     const p = store.create()
-    store.sign(p.id, 'kontrolleur', sig)
-    store.sign(p.id, 'unternehmer', sig)
+    store.sign(p.id, sig)
     store.unlock(p.id)
     const after = store.selected!
     expect(after.gesperrt).toBe(false)
-    expect(after.signaturen.kontrolleur.bild).toBe('')
-    expect(after.signaturen.unternehmer).toEqual({ name: '', datum: '', bild: '' })
-    expect(store.update(p.id, { ortDerInstallation: 'Thun' })).toBe(true)
+    expect(after.signatur).toEqual({ name: '', datum: '', bild: '' })
+    expect(store.update(p.id, { netzspannung: '240' })).toBe(true)
   })
 
   it('keeps the lock after reload and defaults data without signature fields to unlocked', () => {
     const storage = fakeStorage()
     const store = createProtokollStore(storage)
     const p = store.create()
-    store.sign(p.id, 'kontrolleur', sig)
+    store.sign(p.id, sig)
     expect(createProtokollStore(storage).selected!.gesperrt).toBe(true)
 
-    const old = JSON.stringify({ schemaVersion: 2, protokolle: [{ id: 'x' }] })
     const imported = createProtokollStore(fakeStorage())
-    imported.importJson(old)
+    imported.importJson(JSON.stringify({ schemaVersion: 2, protokolle: [{ id: 'x' }] }))
     expect(imported.selected!.gesperrt).toBe(false)
-    expect(imported.selected!.signaturen.kontrolleur.bild).toBe('')
+    expect(imported.selected!.signatur.bild).toBe('')
   })
 
   it('a duplicate of a signed Protokoll is unsigned and editable', () => {
     const store = createProtokollStore(fakeStorage())
     const p = store.create()
-    store.sign(p.id, 'kontrolleur', sig)
+    store.sign(p.id, sig)
     const copy = store.duplicate(p.id)!
     expect(copy.gesperrt).toBe(false)
-    expect(copy.signaturen.kontrolleur.bild).toBe('')
+    expect(copy.signatur.bild).toBe('')
     expect(store.protokolle.find((x) => x.id === p.id)!.gesperrt).toBe(true)
+  })
+})
+
+describe('Protokolle mit zwei Unterschriften (v2, vor #23)', () => {
+  const kontrolleur = { name: 'Karl Kontrolleur', datum: '2026-10-01', bild: PNG }
+  const unternehmer = { name: 'Uwe Unternehmer', datum: '2026-10-02', bild: PNG }
+  const leer = { name: '', datum: '', bild: '' }
+  const laden = (p: Record<string, unknown>) => {
+    const s = createProtokollStore(fakeStorage())
+    s.importJson(JSON.stringify({ schemaVersion: 2, protokolle: [{ id: 'x', ...p }] }))
+    return s.selected!
+  }
+
+  it('keeps the Kontrolleur Unterschrift and the lock when both signed', () => {
+    const p = laden({ gesperrt: true, signaturen: { kontrolleur, unternehmer } })
+    expect(p.signatur).toEqual(kontrolleur)
+    expect(p.gesperrt).toBe(true)
+    expect('signaturen' in p).toBe(false)
+  })
+
+  it('falls back to the Unternehmer Unterschrift when only that one exists', () => {
+    const p = laden({ gesperrt: true, signaturen: { kontrolleur: leer, unternehmer } })
+    expect(p.signatur).toEqual(unternehmer)
+    expect(p.gesperrt).toBe(true)
+  })
+
+  it('fills an empty name from the Mitarbeiter of the Kopf', () => {
+    const p = laden({ gesperrt: true, kopf: { mitarbeiter: 'Hans Muster' }, signaturen: { kontrolleur: { ...kontrolleur, name: '' }, unternehmer: leer } })
+    expect(p.signatur.name).toBe('Hans Muster')
+  })
+
+  it('unlocks a locked Protokoll that has no usable Unterschrift', () => {
+    const p = laden({ gesperrt: true, signaturen: { kontrolleur: leer, unternehmer: leer } })
+    expect(p.signatur).toEqual(leer)
+    expect(p.gesperrt).toBe(false)
+  })
+
+  it('leaves an unlocked Protokoll unsigned', () => {
+    expect(laden({ signaturen: { kontrolleur: leer, unternehmer: leer } }).signatur).toEqual(leer)
   })
 })

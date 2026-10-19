@@ -3,7 +3,7 @@
  * Everything lives under ONE localStorage key so writes are atomic.
  */
 
-import { isGesperrt, isSignatureComplete, leereSignaturen, signPatch, unlockPatch, type Signatur, type Signaturen, type Unterzeichner } from './signaturen'
+import { isGesperrt, isSignatureComplete, leereSignatur, migriereSignatur, signPatch, unlockPatch, type Signatur } from './signaturen'
 import { isZertifikat, type Zertifikat } from './digitale-signatur'
 import { normalisiereStromkreis } from './stromkreis'
 import { createProtokollForm, withFormDefaults, type ProtokollForm } from './protokoll-form'
@@ -68,8 +68,8 @@ export interface Protokoll extends ProtokollForm {
   /** ISO timestamp of the last edit */
   geaendert: string
   stromkreise: Stromkreis[]
-  /** Finger signatures (#8) */
-  signaturen: Signaturen
+  /** Unterschrift of the Mitarbeiter; bild '' = not signed. Stored v2 data with `signaturen` is migrated on load. */
+  signatur: Signatur
   /** true once signed: the whole Protokoll is read-only (store guard + UI) */
   gesperrt: boolean
 }
@@ -95,7 +95,7 @@ function newId(): string {
 }
 
 export function createProtokoll(): Protokoll {
-  return { schemaVersion: SCHEMA_VERSION, id: newId(), geaendert: now(), stromkreise: [], signaturen: leereSignaturen(), gesperrt: false, ...createProtokollForm() }
+  return { schemaVersion: SCHEMA_VERSION, id: newId(), geaendert: now(), stromkreise: [], signatur: leereSignatur(), gesperrt: false, ...createProtokollForm() }
 }
 
 /** "Ausführungsort · Verteilung · Zeitraum der Messungen"; empty parts are left out. */
@@ -125,7 +125,7 @@ function parseBackup(json: string): BackupData {
   }
   // Older schemaVersions are VSEI 133-D Protokolle: dropped, not migrated (ADR 0001). The Zertifikat is kept.
   const aktuell = typeof raw.schemaVersion === 'number' && raw.schemaVersion >= SCHEMA_VERSION
-  const protokolle = (aktuell ? raw.protokolle : []).map((p) => normalisiereStromkreise(withFormDefaults({ ...createProtokoll(), ...p })))
+  const protokolle = (aktuell ? raw.protokolle : []).map((p) => normalisiereStromkreise(migriereSignatur(withFormDefaults({ ...createProtokoll(), ...p })) as Protokoll))
   const selectedId = protokolle.some((p) => p.id === raw.selectedId) ? raw.selectedId! : (protokolle[0]?.id ?? null)
   return {
     schemaVersion: SCHEMA_VERSION,
@@ -171,22 +171,22 @@ export function createProtokollStore(storage: KeyValueStorage) {
       return p
     },
     /** Returns false (and changes nothing) if the Protokoll is locked or unknown. Use sign/unlock for the lock. */
-    update(id: string, patch: Partial<Omit<Protokoll, 'id' | 'schemaVersion' | 'geaendert' | 'signaturen' | 'gesperrt'>>): boolean {
+    update(id: string, patch: Partial<Omit<Protokoll, 'id' | 'schemaVersion' | 'geaendert' | 'signatur' | 'gesperrt'>>): boolean {
       const target = data.protokolle.find((p) => p.id === id)
       if (!target || isGesperrt(target)) return false
       data.protokolle = data.protokolle.map((p) => (p.id === id ? { ...p, ...patch, geaendert: now() } : p))
       commit()
       return true
     },
-    /** Stores the signature and locks the Protokoll. False if unknown or no drawing. */
-    sign(id: string, who: Unterzeichner, signatur: Signatur): boolean {
+    /** Stores the Unterschrift and locks the Protokoll. False if unknown or no drawing. */
+    sign(id: string, signatur: Signatur): boolean {
       const target = data.protokolle.find((p) => p.id === id)
       if (!target || !isSignatureComplete(signatur)) return false
-      data.protokolle = data.protokolle.map((p) => (p.id === id ? { ...p, ...signPatch(p, who, signatur), geaendert: now() } : p))
+      data.protokolle = data.protokolle.map((p) => (p.id === id ? { ...p, ...signPatch(p, signatur), geaendert: now() } : p))
       commit()
       return true
     },
-    /** Clears both signatures and unlocks (UI must ask first). */
+    /** Clears the Unterschrift and unlocks (UI must ask first). */
     unlock(id: string) {
       if (!data.protokolle.some((p) => p.id === id)) return
       data.protokolle = data.protokolle.map((p) => (p.id === id ? { ...p, ...unlockPatch(), geaendert: now() } : p))

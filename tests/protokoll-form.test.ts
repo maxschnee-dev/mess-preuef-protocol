@@ -97,7 +97,7 @@ describe('Prüfpunkte', () => {
     const s = createProtokollStore(fakeStorage())
     const p = s.create()
     s.update(p.id, { netzspannung: '230' })
-    s.sign(p.id, 'kontrolleur', { name: 'Hans Muster', datum: '2026-10-19', bild: 'data:image/png;base64,AAAA' })
+    s.sign(p.id, { name: 'Hans Muster', datum: '2026-10-19', bild: 'data:image/png;base64,AAAA' })
     expect(s.selected!.gesperrt).toBe(true)
     expect(s.update(p.id, { pruefpunkte: { ...p.pruefpunkte, basisschutz: true }, netzspannung: '240' })).toBe(false)
     expect(s.selected!.pruefpunkte.basisschutz).toBe(false)

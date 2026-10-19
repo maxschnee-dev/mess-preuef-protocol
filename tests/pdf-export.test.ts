@@ -18,7 +18,7 @@ function gesperrtesProtokoll(stromkreise: number): Protokoll {
   const p = createProtokoll()
   p.kopf.stromkunde = 'Muster AG'
   for (let i = 0; i < stromkreise; i++) p.stromkreise = addStromkreis(p.stromkreise)
-  p.signaturen.kontrolleur = { name: 'Hans Muster', datum: '2026-10-02', bild: PNG }
+  p.signatur = { name: 'Hans Muster', datum: '2026-10-02', bild: PNG }
   p.gesperrt = true
   return p
 }

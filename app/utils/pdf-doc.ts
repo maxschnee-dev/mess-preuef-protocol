@@ -187,9 +187,7 @@ function gemesseneSpannungBox(p: Protokoll): Node {
 }
 
 function unterschriftMitarbeiterBox(p: Protokoll): Node {
-  // until #23 there are still two signatures; the one that locked the Protokoll fills the slot
-  const s = p.signaturen.kontrolleur.bild || !p.signaturen.unternehmer.bild ? p.signaturen.kontrolleur : p.signaturen.unternehmer
-  return section('Unterschrift Mitarbeiter', [signaturBlock(s)], RESERVIERT_HOEHE)
+  return section('Unterschrift Mitarbeiter', [signaturBlock(p.signatur)], RESERVIERT_HOEHE)
 }
 
 function reservierteZeile(p: Protokoll): Node {
