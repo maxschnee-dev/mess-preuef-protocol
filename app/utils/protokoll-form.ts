@@ -5,6 +5,7 @@
 
 /** The Elektro-Installateur is fixed; it is printed and never entered. */
 export const ELEKTRO_INSTALLATEUR = 'Equans Switzerland Facility Management AG'
+export const ELEKTRO_INSTALLATEUR_ADRESSE = ['Baarermattstrasse 6', '6340 Baar'] as const
 
 export const VERWENDETES_MESSGERAET = 'Fluke 1663 / Erd-Tester ET15'
 

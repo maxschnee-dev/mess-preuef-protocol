@@ -2,6 +2,7 @@
 import { createRequire } from 'node:module'
 import { writeFileSync } from 'node:fs'
 import { it } from 'vitest'
+import logo from '../app/assets/equans_logo.png?inline'
 import { buildDocDefinition } from '../app/utils/pdf-doc'
 import { createProtokoll } from '../app/utils/protokoll-store'
 import { addStromkreis, updateStromkreis } from '../app/utils/stromkreis'
@@ -21,6 +22,6 @@ it('writes a 25-Stromkreis sample PDF', async () => {
   for (let i = 0; i < 25; i++) p.stromkreise = addStromkreis(p.stromkreise)
   p.stromkreise = p.stromkreise.map((s, i) => ({ ...s, bezeichnung: `Steckdosen Zimmer ${i + 1}`, leitungArtTyp: 'NYM-J', leiterAnzahl: '3', leiterQuerschnitt: '1.5', ueberstromschutzArt: 'LS-B', ueberstromschutzIn: '16', rcdIn: '40', rcdArt: 'A', rcdIdn: '30', schutzleiter: '0.2', rIso: '>500', iLeck: '0.1', ikAnfang: '800', ikEnde: '300', ausloesezeit: '22' }))
   p.stromkreise = updateStromkreis(p.stromkreise, p.stromkreise[0]!.id, { bezeichnung: 'Licht Küche' })
-  const buf: Buffer = await pdfmake.createPdf(buildDocDefinition(p, { legende: process.env.LEGENDE !== "0" })).getBuffer()
+  const buf: Buffer = await pdfmake.createPdf(buildDocDefinition(p, { logo, legende: process.env.LEGENDE !== "0" })).getBuffer()
   writeFileSync('/tmp/sample-protokoll.pdf', buf)
 })

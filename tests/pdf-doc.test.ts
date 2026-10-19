@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildDocDefinition, pdfFilename } from '../app/utils/pdf-doc'
+import { buildDocDefinition, pdfFilename, STROMKREISE_AUF_SEITE_1 } from '../app/utils/pdf-doc'
 import { createProtokoll, type Protokoll } from '../app/utils/protokoll-store'
 import { addStromkreis, updateStromkreis } from '../app/utils/stromkreis'
 
@@ -16,6 +16,8 @@ function walk(n: unknown, out: Node[] = []): Node[] {
   return out
 }
 const texts = (doc: unknown) => walk((doc as Node).content).flatMap((n) => (typeof n.text === 'string' ? [n.text] : []))
+const headerOf = (doc: unknown, page = 1, pages = 1) => (doc as Node).header(page, pages) as Node
+const headerTexts = (doc: unknown, page = 1, pages = 1) => walk(headerOf(doc, page, pages)).flatMap((n) => (typeof n.text === 'string' ? [n.text] : []))
 const tableWith = (doc: unknown, header: string) =>
   walk((doc as Node).content).find((n) => n.table && JSON.stringify(n.table.body[0]).includes(header))!
 
@@ -30,11 +32,30 @@ function filled(): Protokoll {
 }
 
 describe('buildDocDefinition', () => {
-  it('prints the Kopf values', () => {
-    const t = texts(buildDocDefinition(filled()))
-    for (const v of ['Muster AG', 'A-4711', 'IA-77', '55512', 'Musterweg 3, Bern', 'HV 1', 'Neuinstallation', 'Fluke 1663 / Erd-Tester ET15', '14.–16.10.2026', 'Hans Muster']) {
-      expect(t).toContain(v)
+  it('prints the Kopf values in the page header, so they repeat on every page', () => {
+    const doc = buildDocDefinition(filled())
+    for (const page of [1, 2, 3]) {
+      const t = headerTexts(doc, page, 3)
+      for (const v of ['Muster AG', 'A-4711', 'IA-77', '55512', 'Musterweg 3, Bern', 'HV 1', 'Neuinstallation', 'Fluke 1663 / Erd-Tester ET15', '14.–16.10.2026', 'Hans Muster']) {
+        expect(t).toContain(v)
+      }
     }
+    expect(texts(doc)).not.toContain('Muster AG')
+  })
+
+  it('prints the fixed Elektro-Installateur block and the logo in the header', () => {
+    const doc = buildDocDefinition(filled(), { logo: PNG })
+    const t = headerTexts(doc, 2, 2)
+    expect(t).toContain('Equans Switzerland Facility Management AG')
+    expect(t).toContain('Baarermattstrasse 6')
+    expect(t).toContain('6340 Baar')
+    expect(walk(headerOf(doc)).filter((n) => n.image === PNG)).toHaveLength(1)
+    expect(walk(headerOf(buildDocDefinition(filled()))).some((n) => n.image)).toBe(false)
+  })
+
+  it('keeps the page header clear of the content', () => {
+    const doc = buildDocDefinition(filled()) as Node
+    expect(doc.pageMargins[1]).toBeGreaterThanOrEqual(100)
   })
 
   it('leaves out the removed VSEI sections', () => {
@@ -51,18 +72,75 @@ describe('buildDocDefinition', () => {
     expect(doc.footer(2, 5)).toMatchObject({ text: expect.stringContaining('Seite 2 von 5') })
   })
 
-  it('lists all 25 Stromkreise in a table whose header repeats on new pages', () => {
+  it('has the template column groups in order, with the Stromkreis columns under them', () => {
+    const t = tableWith(buildDocDefinition(filled()), 'Ort / Anlagenteil').table
+    const groups = t.body[0].map((c: Node) => c.text).filter(Boolean)
+    expect(groups).toEqual([
+      'Stromkreis Nr.', 'Ort / Anlagenteil', 'Leitung / Kabel', 'Überstromschutz-Einrichtungen',
+      'Messungen (gemessener Wert)', 'Fehlerstromschutz-Einrichtungen (RCD)', 'Weiteres / Bemerkungen',
+    ])
+    expect(t.body[1].map((c: Node) => c.text).filter(Boolean)).toEqual([
+      'Art / Typ', 'Anz.', 'mm²', 'Art', 'I_N [A]',
+      'Schutzleiter [Ω]', 'R_ISO [MΩ]', 'I_Leck [mA]', 'I_K Anfang [A]', 'I_K Ende [A]',
+      'I_N [A]', 'Art', 'I_ΔN [mA]', 'Auslösezeit [ms]',
+    ])
+    expect(t.widths).toHaveLength(t.body[0].length)
+  })
+
+  it('puts a Stromkreis into the columns of its groups', () => {
+    const p = filled()
+    p.stromkreise = addStromkreis([])
+    p.stromkreise = updateStromkreis(p.stromkreise, p.stromkreise[0]!.id, { bezeichnung: 'Waschküche', schutzleiter: '0.2', rIso: '500', ikEnde: '300', rcdIdn: '30', ausloesezeit: '22' })
+    const t = tableWith(buildDocDefinition(p), 'Ort / Anlagenteil').table
+    const row = t.body[2].map((c: Node) => c.text)
+    expect(row).toHaveLength(17)
+    expect(row.slice(0, 2)).toEqual(['1', 'Waschküche'])
+    expect(row.slice(7, 12)).toEqual(['0.2', '500', '', '', '300'])
+    expect(row.slice(14, 16)).toEqual(['30', '22'])
+    expect(row[16]).toBe('')
+  })
+
+  it('lists all 25 Stromkreise, the first ones on page 1 and the rest in a table on a new page', () => {
     const p = filled()
     for (let i = 0; i < 25; i++) p.stromkreise = addStromkreis(p.stromkreise)
     p.stromkreise = updateStromkreis(p.stromkreise, p.stromkreise[24]!.id, { bezeichnung: 'Waschküche', rIso: '500' })
-    const t = tableWith(buildDocDefinition(p), 'Bezeichnung').table
-    expect(t.headerRows).toBe(2)
-    expect(t.body).toHaveLength(t.headerRows + 25)
-    const last = t.body[t.body.length - 1].map((c: Node) => c.text)
+    const tables = (doc: unknown) => ((doc as Node).content as Node[]).filter((n) => n.table && JSON.stringify(n.table.body[0]).includes('Ort / Anlagenteil'))
+    const [first, rest, ...more] = tables(buildDocDefinition(p))
+    expect(more).toHaveLength(0)
+    expect(first!.pageBreak).toBeUndefined()
+    expect(first!.table.body).toHaveLength(2 + STROMKREISE_AUF_SEITE_1)
+    expect(rest!.pageBreak).toBe('before')
+    expect(rest!.table.headerRows).toBe(2)
+    expect(rest!.table.body).toHaveLength(2 + 25 - STROMKREISE_AUF_SEITE_1)
+    const last = rest!.table.body[rest!.table.body.length - 1].map((c: Node) => c.text)
     expect(last).toContain('Waschküche')
     expect(last).toContain('500')
     expect(last).toContain('25')
-    expect(t.body.every((r: unknown[]) => r.length === t.body[0].length)).toBe(true)
+    expect(rest!.table.body.every((r: unknown[]) => r.length === rest!.table.body[0].length)).toBe(true)
+  })
+
+  it('keeps everything on one page for few Stromkreise', () => {
+    const p = filled()
+    for (let i = 0; i < STROMKREISE_AUF_SEITE_1; i++) p.stromkreise = addStromkreis(p.stromkreise)
+    const content = (buildDocDefinition(p) as Node).content as Node[]
+    expect(content.some((n) => n.pageBreak)).toBe(false)
+  })
+
+  it('reserves room on page 1, after the first Stromkreise, for Prüfpunkte, Gemessene Spannung and Unterschrift Mitarbeiter', () => {
+    const p = filled()
+    for (let i = 0; i < 20; i++) p.stromkreise = addStromkreis(p.stromkreise)
+    const content = (buildDocDefinition(p) as Node).content as Node[]
+    const row = content.findIndex((n) => n.columns)
+    expect(row).toBe(1) // directly after the page-1 table, before the page break of the next one
+    expect(content[2]!.pageBreak).toBe('before')
+    const titles = walk(content[row]).flatMap((n) => (typeof n.text === 'string' ? [n.text] : []))
+    expect(titles).toEqual(expect.arrayContaining(['Prüfpunkte', 'Gemessene Spannung', 'Unterschrift Mitarbeiter']))
+  })
+
+  it('prints the Gemessene Spannung that exists today', () => {
+    const p = filled()
+    p.netzspannung = '231'
+    expect(texts(buildDocDefinition(p))).toContain('231 V')
   })
 
   it('embeds signature images only when signed', () => {
