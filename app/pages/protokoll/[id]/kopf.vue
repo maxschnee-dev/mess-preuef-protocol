@@ -1,3 +1,3 @@
 <template>
-  <StepPruefungen />
+  <ProtokollKopf />
 </template>

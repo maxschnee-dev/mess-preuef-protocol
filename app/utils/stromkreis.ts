@@ -21,9 +21,12 @@ export function createStromkreis(nr: string): Stromkreis {
     schutzleiter: '',
     rIso: '',
     iLeck: '',
-    ikAnfang: '',
-    ikEnde: '',
+    ikLpeAnfang: '',
+    ikLpeEnde: '',
+    ikLnAnfang: '',
+    ikLnEnde: '',
     ausloesezeit: '',
+    bemerkungen: '',
   }
 }
 
@@ -98,4 +101,24 @@ export function parseStromkreisNr(param: unknown): number | null {
 export function clampIndex(index: number | null, length: number): number | null {
   if (length === 0) return null
   return index === null ? 0 : Math.min(Math.max(index, 0), length - 1)
+}
+
+/**
+ * Brings a stored Stromkreis (possibly from before L-PE / L-N and Bemerkungen) into the current shape.
+ * The old single I_K pair (ikAnfang / ikEnde) was measured Phase to PE in practice, so it becomes L-PE;
+ * L-N and Bemerkungen start empty. Missing or non-string fields become ''. Unknown keys are kept.
+ */
+export function normalisiereStromkreis(raw: unknown): Stromkreis | null {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
+  const stored = raw as Record<string, unknown>
+  const { ikAnfang, ikEnde, ...rest } = stored
+  const base = createStromkreis('')
+  const out: Record<string, unknown> = { ...rest }
+  for (const k of Object.keys(base) as (keyof Stromkreis)[]) {
+    out[k] = typeof rest[k] === 'string' ? rest[k] : base[k]
+  }
+  if (typeof out.id !== 'string' || out.id === '') out.id = base.id
+  if (out.ikLpeAnfang === '' && typeof ikAnfang === 'string') out.ikLpeAnfang = ikAnfang
+  if (out.ikLpeEnde === '' && typeof ikEnde === 'string') out.ikLpeEnde = ikEnde
+  return out as unknown as Stromkreis
 }

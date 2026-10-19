@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Zertifikat } from '~/utils/digitale-signatur'
+import { ELEKTRO_INSTALLATEUR } from '~/utils/protokoll-form'
 import { exportPdf } from '~/utils/pdf-export'
 import { createZertifikat } from '~/utils/pdf-sign'
 import { isGesperrt } from '~/utils/signaturen'
@@ -18,7 +19,7 @@ async function run() {
     if (isGesperrt(p)) {
       z = zertifikat.value ?? undefined
       if (!z) {
-        z = await createZertifikat(p.auftragnehmer.name1)
+        z = await createZertifikat(ELEKTRO_INSTALLATEUR)
         setZertifikat(z)
       }
     }

@@ -16,14 +16,14 @@ describe('Schnellwerte', () => {
     expect(FELD_INFO.rcdIdn.schnellwerte).toEqual(['10', '30', '300'])
   })
   it('I_K, Auslösezeit and Netzspannung have none', () => {
-    for (const k of ['ikAnfang', 'ikEnde', 'ausloesezeit', 'netzspannung'] as const) expect(FELD_INFO[k].schnellwerte).toEqual([])
+    for (const k of ['ikLpeAnfang', 'ikLpeEnde', 'ikLnAnfang', 'ikLnEnde', 'ausloesezeit', 'netzspannung'] as const) expect(FELD_INFO[k].schnellwerte).toEqual([])
   })
 })
 
 describe('naechstesZiel (Weiter)', () => {
   const ids = ['a', 'b']
   it('walks the Messwerte in entry order', () => {
-    const order = ['schutzleiter', 'rIso', 'iLeck', 'ikAnfang', 'ikEnde', 'ausloesezeit']
+    const order = ['schutzleiter', 'rIso', 'iLeck', 'ikLpeAnfang', 'ikLpeEnde', 'ikLnAnfang', 'ikLnEnde', 'ausloesezeit']
     for (let i = 0; i < order.length - 1; i++) expect(naechstesZiel(m('a', order[i]!), ids)).toEqual(m('a', order[i + 1]!))
   })
   it('after Auslösezeit goes to the first Messwert of the next Stromkreis', () => {

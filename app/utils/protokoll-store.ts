@@ -3,11 +3,14 @@
  * Everything lives under ONE localStorage key so writes are atomic.
  */
 
-import { isGesperrt, isSignatureComplete, leereSignaturen, signPatch, unlockPatch, type Signatur, type Signaturen, type Unterzeichner } from './signaturen'
+import { isGesperrt, isSignatureComplete, leereSignatur, migriereSignatur, signPatch, unlockPatch, type Signatur } from './signaturen'
 import { isZertifikat, type Zertifikat } from './digitale-signatur'
+import { normalisiereStromkreis } from './stromkreis'
 import { createProtokollForm, withFormDefaults, type ProtokollForm } from './protokoll-form'
 
-export const SCHEMA_VERSION = 1
+/** 2 = Equans Erstprüfungsprotokoll (ADR 0001); VSEI 133-D Protokolle (1) are dropped on load/import. */
+export const SCHEMA_VERSION = 2
+/** Key kept from v1 because the same state also holds the Digitale-Signatur Zertifikat, which must survive. */
 export const STORAGE_KEY = 'mpp:v1:state'
 
 /** Überstromschutz Art/Charakteristik ('' = not set). */
@@ -21,7 +24,7 @@ export type RcdArt = '' | 'A' | 'AC' | 'F' | 'B' | 'A-S' | 'B-S' | 'andere'
  */
 export interface Stromkreis {
   id: string
-  // Stammdaten
+  // Stammdaten of the Stromkreis
   nr: string
   bezeichnung: string
   leitungArtTyp: string
@@ -45,34 +48,28 @@ export interface Stromkreis {
   /** I_Leck in mA */
   iLeck: string
   // Messungen unter Spannung
-  /** I_K Anfang in A */
-  ikAnfang: string
-  /** I_K Ende in A */
-  ikEnde: string
+  /** I_K Anfang L-PE in A */
+  ikLpeAnfang: string
+  /** I_K Ende L-PE in A */
+  ikLpeEnde: string
+  /** I_K Anfang L-N in A */
+  ikLnAnfang: string
+  /** I_K Ende L-N in A */
+  ikLnEnde: string
   /** RCD-Auslösezeit in ms */
   ausloesezeit: string
-}
-
-/** Autocomplete store entries (ticket #7). `name` is the Partei's Name 1. */
-export interface Company {
-  name: string
-  name2: string
-  strasse: string
-  plzOrt: string
-}
-export interface Messgeraet {
-  name: string
+  /** Free-text Bemerkungen of this Stromkreis (printed under "Weiteres") */
+  bemerkungen: string
 }
 
 export interface Protokoll extends ProtokollForm {
   schemaVersion: number
   id: string
-  /** ISO date (YYYY-MM-DD) or '' */
-  kontrolldatum: string
-  ortDerInstallation: string
+  /** ISO timestamp of the last edit */
+  geaendert: string
   stromkreise: Stromkreis[]
-  /** Finger signatures (#8) */
-  signaturen: Signaturen
+  /** Unterschrift of the Mitarbeiter; bild '' = not signed. Stored v2 data with `signaturen` is migrated on load. */
+  signatur: Signatur
   /** true once signed: the whole Protokoll is read-only (store guard + UI) */
   gesperrt: boolean
 }
@@ -81,8 +78,6 @@ export interface BackupData {
   schemaVersion: number
   protokolle: Protokoll[]
   selectedId: string | null
-  companies: Company[]
-  messgeraete: Messgeraet[]
   /** Digitale Signatur certificate (key + cert); absent in older backups */
   zertifikat: Zertifikat | null
 }
@@ -93,19 +88,34 @@ export interface KeyValueStorage {
   removeItem(key: string): void
 }
 
+const now = () => new Date().toISOString()
+
 function newId(): string {
   return globalThis.crypto?.randomUUID?.() ?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`
 }
 
 export function createProtokoll(): Protokoll {
-  return { schemaVersion: SCHEMA_VERSION, id: newId(), kontrolldatum: '', ortDerInstallation: '', stromkreise: [], signaturen: leereSignaturen(), gesperrt: false, ...createProtokollForm() }
+  return { schemaVersion: SCHEMA_VERSION, id: newId(), geaendert: now(), stromkreise: [], signatur: leereSignatur(), gesperrt: false, ...createProtokollForm() }
 }
 
-/** "01.10.2026 · Bern" */
-export function protokollLabel(p: Pick<Protokoll, 'kontrolldatum' | 'ortDerInstallation'>): string {
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(p.kontrolldatum)
-  const datum = m ? `${m[3]}.${m[2]}.${m[1]}` : p.kontrolldatum || 'Ohne Datum'
-  return `${datum} · ${p.ortDerInstallation || 'Ohne Ort'}`
+/** "Ausführungsort · Verteilung · Zeitraum der Messungen"; empty parts are left out. */
+export function protokollLabel(p: Pick<Protokoll, 'kopf'>): string {
+  const k = p.kopf
+  return [k.ausfuehrungsort, k.verteilung, k.zeitraumDerMessungen].map((t) => t.trim()).filter(Boolean).join(' · ') || 'Ohne Angaben'
+}
+
+/** "19.10.2026 14:32" (local time) */
+export function formatGeaendert(iso: string): string {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  const z = (n: number) => String(n).padStart(2, '0')
+  return `${z(d.getDate())}.${z(d.getMonth() + 1)}.${d.getFullYear()} ${z(d.getHours())}:${z(d.getMinutes())}`
+}
+
+/** Stromkreise stored before L-PE / L-N and Bemerkungen get the current shape; unusable entries are dropped. */
+function normalisiereStromkreise(p: Protokoll): Protokoll {
+  const liste = Array.isArray(p.stromkreise) ? p.stromkreise : []
+  return { ...p, stromkreise: liste.map(normalisiereStromkreis).filter((s): s is Stromkreis => s !== null) }
 }
 
 function parseBackup(json: string): BackupData {
@@ -113,21 +123,20 @@ function parseBackup(json: string): BackupData {
   if (!raw || typeof raw !== 'object' || !Array.isArray(raw.protokolle)) {
     throw new Error('Ungültige Sicherungsdatei')
   }
-  // Migrations from older schemaVersions go here.
-  const protokolle = raw.protokolle.map((p) => withFormDefaults({ ...createProtokoll(), ...p }))
+  // Older schemaVersions are VSEI 133-D Protokolle: dropped, not migrated (ADR 0001). The Zertifikat is kept.
+  const aktuell = typeof raw.schemaVersion === 'number' && raw.schemaVersion >= SCHEMA_VERSION
+  const protokolle = (aktuell ? raw.protokolle : []).map((p) => normalisiereStromkreise(migriereSignatur(withFormDefaults({ ...createProtokoll(), ...p })) as Protokoll))
   const selectedId = protokolle.some((p) => p.id === raw.selectedId) ? raw.selectedId! : (protokolle[0]?.id ?? null)
   return {
     schemaVersion: SCHEMA_VERSION,
     protokolle,
     selectedId,
-    companies: Array.isArray(raw.companies) ? raw.companies : [],
-    messgeraete: Array.isArray(raw.messgeraete) ? raw.messgeraete : [],
     zertifikat: isZertifikat(raw.zertifikat) ? raw.zertifikat : null,
   }
 }
 
 export function createProtokollStore(storage: KeyValueStorage) {
-  let data: BackupData = { schemaVersion: SCHEMA_VERSION, protokolle: [], selectedId: null, companies: [], messgeraete: [], zertifikat: null }
+  let data: BackupData = { schemaVersion: SCHEMA_VERSION, protokolle: [], selectedId: null, zertifikat: null }
   const listeners = new Set<() => void>()
 
   try {
@@ -145,8 +154,6 @@ export function createProtokollStore(storage: KeyValueStorage) {
   return {
     get protokolle() { return data.protokolle },
     get selectedId() { return data.selectedId },
-    get companies() { return data.companies },
-    get messgeraete() { return data.messgeraete },
     get zertifikat() { return data.zertifikat },
     get selected(): Protokoll | null { return data.protokolle.find((p) => p.id === data.selectedId) ?? null },
 
@@ -164,25 +171,25 @@ export function createProtokollStore(storage: KeyValueStorage) {
       return p
     },
     /** Returns false (and changes nothing) if the Protokoll is locked or unknown. Use sign/unlock for the lock. */
-    update(id: string, patch: Partial<Omit<Protokoll, 'id' | 'schemaVersion' | 'signaturen' | 'gesperrt'>>): boolean {
+    update(id: string, patch: Partial<Omit<Protokoll, 'id' | 'schemaVersion' | 'geaendert' | 'signatur' | 'gesperrt'>>): boolean {
       const target = data.protokolle.find((p) => p.id === id)
       if (!target || isGesperrt(target)) return false
-      data.protokolle = data.protokolle.map((p) => (p.id === id ? { ...p, ...patch } : p))
+      data.protokolle = data.protokolle.map((p) => (p.id === id ? { ...p, ...patch, geaendert: now() } : p))
       commit()
       return true
     },
-    /** Stores the signature and locks the Protokoll. False if unknown or no drawing. */
-    sign(id: string, who: Unterzeichner, signatur: Signatur): boolean {
+    /** Stores the Unterschrift and locks the Protokoll. False if unknown or no drawing. */
+    sign(id: string, signatur: Signatur): boolean {
       const target = data.protokolle.find((p) => p.id === id)
       if (!target || !isSignatureComplete(signatur)) return false
-      data.protokolle = data.protokolle.map((p) => (p.id === id ? { ...p, ...signPatch(p, who, signatur) } : p))
+      data.protokolle = data.protokolle.map((p) => (p.id === id ? { ...p, ...signPatch(p, signatur), geaendert: now() } : p))
       commit()
       return true
     },
-    /** Clears both signatures and unlocks (UI must ask first). */
+    /** Clears the Unterschrift and unlocks (UI must ask first). */
     unlock(id: string) {
       if (!data.protokolle.some((p) => p.id === id)) return
-      data.protokolle = data.protokolle.map((p) => (p.id === id ? { ...p, ...unlockPatch() } : p))
+      data.protokolle = data.protokolle.map((p) => (p.id === id ? { ...p, ...unlockPatch(), geaendert: now() } : p))
       commit()
     },
     select(id: string) {
@@ -193,7 +200,7 @@ export function createProtokollStore(storage: KeyValueStorage) {
     duplicate(id: string): Protokoll | null {
       const src = data.protokolle.find((p) => p.id === id)
       if (!src) return null
-      const copy: Protokoll = { ...structuredClone(src), id: newId(), ...unlockPatch() }
+      const copy: Protokoll = { ...structuredClone(src), id: newId(), geaendert: now(), ...unlockPatch() }
       data.protokolle = [...data.protokolle, copy]
       data.selectedId = copy.id
       commit()
@@ -204,12 +211,6 @@ export function createProtokollStore(storage: KeyValueStorage) {
       if (data.selectedId === id) data.selectedId = data.protokolle[0]?.id ?? null
       commit()
     },
-    setStammdaten(s: { companies?: Company[]; messgeraete?: Messgeraet[] }) {
-      if (s.companies) data.companies = s.companies
-      if (s.messgeraete) data.messgeraete = s.messgeraete
-      commit()
-    },
-
     setZertifikat(z: Zertifikat | null) {
       data.zertifikat = z
       commit()

@@ -1,6 +1,5 @@
 export const STEPS = [
-  { key: 'auftrag', label: 'Auftrag' },
-  { key: 'pruefungen', label: 'Prüfungen' },
+  { key: 'kopf', label: 'Kopf' },
   { key: 'stromkreise', label: 'Stromkreise' },
   { key: 'abschluss', label: 'Abschluss' },
 ] as const

@@ -4,7 +4,7 @@
  */
 
 export type StammKey = 'leiterAnzahl' | 'leiterQuerschnitt' | 'ueberstromschutzIn' | 'rcdIn' | 'rcdIdn'
-export type MesswertKey = 'schutzleiter' | 'rIso' | 'iLeck' | 'ikAnfang' | 'ikEnde' | 'ausloesezeit'
+export type MesswertKey = 'schutzleiter' | 'rIso' | 'iLeck' | 'ikLpeAnfang' | 'ikLpeEnde' | 'ikLnAnfang' | 'ikLnEnde' | 'ausloesezeit'
 
 /** The field the keypad edits. Stromkreis fields are addressed by Stromkreis id (stable when reordering). */
 export type KeypadTarget =
@@ -21,7 +21,7 @@ export interface FeldInfo {
 
 export const STAMM_REIHENFOLGE: readonly StammKey[] = ['leiterAnzahl', 'leiterQuerschnitt', 'ueberstromschutzIn', 'rcdIn', 'rcdIdn']
 /** Entry order of the Messwert cards; Weiter follows it. */
-export const MESSWERT_REIHENFOLGE: readonly MesswertKey[] = ['schutzleiter', 'rIso', 'iLeck', 'ikAnfang', 'ikEnde', 'ausloesezeit']
+export const MESSWERT_REIHENFOLGE: readonly MesswertKey[] = ['schutzleiter', 'rIso', 'iLeck', 'ikLpeAnfang', 'ikLpeEnde', 'ikLnAnfang', 'ikLnEnde', 'ausloesezeit']
 
 export const FELD_INFO: Record<StammKey | MesswertKey | 'netzspannung', FeldInfo> = {
   // Comma decimals, like the keypad's comma key
@@ -33,10 +33,12 @@ export const FELD_INFO: Record<StammKey | MesswertKey | 'netzspannung', FeldInfo
   schutzleiter: { label: 'Schutzleiter', unit: 'Ω', schnellwerte: ['<0,1'] },
   rIso: { label: 'R_ISO', unit: 'MΩ', schnellwerte: ['>500', '>999'] },
   iLeck: { label: 'I_Leck', unit: 'mA', schnellwerte: ['<0,1'] },
-  ikAnfang: { label: 'I_K Anfang', unit: 'A', schnellwerte: [] },
-  ikEnde: { label: 'I_K Ende', unit: 'A', schnellwerte: [] },
+  ikLpeAnfang: { label: 'I_K Anfang L-PE', unit: 'A', schnellwerte: [] },
+  ikLpeEnde: { label: 'I_K Ende L-PE', unit: 'A', schnellwerte: [] },
+  ikLnAnfang: { label: 'I_K Anfang L-N', unit: 'A', schnellwerte: [] },
+  ikLnEnde: { label: 'I_K Ende L-N', unit: 'A', schnellwerte: [] },
   ausloesezeit: { label: 'Auslösezeit', unit: 'ms', schnellwerte: [] },
-  netzspannung: { label: 'Netzspannung L–N', unit: 'V', schnellwerte: [] },
+  netzspannung: { label: 'Gemessene Spannung', unit: 'V', schnellwerte: [] },
 }
 
 export const feldKey = (t: KeypadTarget): keyof typeof FELD_INFO => (t.kind === 'netz' ? 'netzspannung' : t.key)

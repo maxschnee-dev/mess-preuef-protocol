@@ -1,140 +1,78 @@
 /**
- * Form sections of page 1 of the Protokoll (header, Sichtprüfung, Funktionsprüfung, Prüfergebnis).
- * Framework-free. Kontrolldatum, Ort der Installation and Stromkreise live in protokoll-store.ts.
+ * Form sections of the Equans Erstprüfungsprotokoll (ADR 0001). Framework-free.
+ * Stromkreise, Unterschrift and the lock live in protokoll-store.ts / signaturen.ts.
  */
 
-export const AUFTRAGGEBER_ARTEN = [
-  { value: 'eigentuemer', label: 'Eigentümer' },
-  { value: 'verwaltung', label: 'Verwaltung' },
-  { value: 'stromkunde', label: 'Stromkunde' },
-] as const
-export const AUFTRAGNEHMER_ARTEN = [
-  { value: 'elektro-installateur', label: 'Elektro-Installateur' },
-  { value: 'kontrollorgan', label: 'Kontrollorgan' },
-] as const
+/** The Elektro-Installateur is fixed; it is printed and never entered. */
+export const ELEKTRO_INSTALLATEUR = 'Equans Switzerland Facility Management AG'
+export const ELEKTRO_INSTALLATEUR_ADRESSE = ['Baarermattstrasse 6', '6340 Baar'] as const
 
-export interface Partei {
-  /** value of AUFTRAGGEBER_ARTEN / AUFTRAGNEHMER_ARTEN, or '' */
-  art: string
-  name1: string
-  name2: string
-  strasse: string
-  plzOrt: string
-}
+export const VERWENDETES_MESSGERAET = 'Fluke 1663 / Erd-Tester ET15'
 
-export interface Installation {
-  gebaeudeart: string
-  objektNr: string
-  instAnzeige: string
-  anlage: string
+/** Kopf of a Protokoll. All fields are plain text. */
+export interface Kopf {
   stromkunde: string
-  stockwerkRaum: string
-  zaehlerNr: string
-  anlageNr: string
+  interneAuftragsnummer: string
+  installationsAnzeigeNr: string
+  zaehlerNummer: string
+  ausfuehrungsort: string
+  verteilung: string
+  ausgefuehrteArbeiten: string
+  verwendetesMessgeraet: string
+  /** free text, e.g. "14.–16.10.2026" */
+  zeitraumDerMessungen: string
+  mitarbeiter: string
 }
 
-export interface Kontrolle {
-  durchgefuehrteKontrolle: string
-  kontrollperiode: string
-  kontrollumfang: string
-}
-
-/** One row of the Anlage/Anlageteil x Verbraucher grid (free text). */
-export interface AnlageteilZeile {
-  id: string
-  anlageteil: string
-  verbraucher: string
-}
-
-export const SICHTPRUEFUNG_ITEMS = [
-  { key: 'leiterFarbkennzeichnung', label: 'Leiter, Farbkennzeichnung' },
-  { key: 'schutzDirektesBeruehren', label: 'Schutz gegen direktes Berühren' },
-  { key: 'ueberstromschutz', label: 'Überstromschutzeinrichtungen, Bemessung' },
-  { key: 'kennzeichnung', label: 'Beschriftung, Kennzeichnung' },
-  { key: 'verlegungBefestigung', label: 'Verlegung, Befestigung' },
-  { key: 'brandschutz', label: 'Brandschutz, Abschottungen' },
-  { key: 'potentialausgleich', label: 'Potentialausgleich' },
-  { key: 'zugaenglichkeit', label: 'Zugänglichkeit, Schemas, Dokumentation' },
+/** The five Prüfpunkte, in the order of the template. */
+export const PRUEFPUNKTE = [
+  { key: 'basisschutz', label: 'Basisschutz erfüllt' },
+  { key: 'brandabschottungen', label: 'Brandabschottungen' },
+  { key: 'betriebsmittel', label: 'Richtige Auswahl und Bezeichnung der Betriebsmittel' },
+  { key: 'stromkreiseBezeichnung', label: 'Bemessung / Kennzeichnung der Stromkreise / Leitungen' },
+  { key: 'schemas', label: 'Schemas und Legenden elektronisch nachgeführt' },
 ] as const
 
-export const SCHUTZ_SYSTEME = ['TN-S', 'TN-C', 'TN-C-S', 'TT', 'IT'] as const
+export type PruefpunktKey = (typeof PRUEFPUNKTE)[number]['key']
+/** true = confirmed; false = blank (not confirmed). There is no third state. */
+export type Pruefpunkte = Record<PruefpunktKey, boolean>
 
-export interface Sichtpruefung {
-  checks: Record<string, boolean>
-  /** one of SCHUTZ_SYSTEME or '' */
-  schutzSystem: string
-  erder: string
-}
-
-export const FUNKTIONSPRUEFUNG_ITEMS = [
-  { key: 'schutzeinrichtungen', label: 'Schutzeinrichtungen (RCD-Prüftaste, Überstromschutz)' },
-  { key: 'schalter', label: 'Schalter, Steuerungen, Verriegelungen' },
-  { key: 'drehfeld', label: 'Drehfeld' },
-  { key: 'notbeleuchtung', label: 'Sicherheitsbeleuchtung, Notausschalter' },
-  { key: 'steckdosen', label: 'Steckdosen, Polarität' },
-] as const
-
-export interface Funktionspruefung {
-  checks: Record<string, boolean>
-}
-
-export interface Pruefergebnis {
-  /** "Keine Mängel festgestellt" */
-  keineMaengel: boolean
-}
-
-/** All form fields added to Protokoll by ticket #4. */
+/** All form fields of a Protokoll besides Stromkreise and Unterschrift. */
 export interface ProtokollForm {
-  auftraggeber: Partei
-  auftragnehmer: Partei
-  installation: Installation
-  kontrolle: Kontrolle
-  anlageteile: AnlageteilZeile[]
-  sichtpruefung: Sichtpruefung
-  funktionspruefung: Funktionspruefung
-  /** Gemessene Netzspannung, single value in V (e.g. "230") */
+  kopf: Kopf
+  pruefpunkte: Pruefpunkte
+  /** Gemessene Spannung, single value in V (e.g. "230"). Named `netzspannung` since v1; the Grenzwert check is `pruefeNetzspannung`. */
   netzspannung: string
-  bemerkungen: string
-  /** names of the Messgeräte used */
-  messgeraete: string[]
-  pruefungNach: string
-  schaltgeraetekombination: string
-  dokumentation: string
-  pruefergebnis: Pruefergebnis
 }
 
-function unchecked(items: readonly { key: string }[]): Record<string, boolean> {
-  return Object.fromEntries(items.map((i) => [i.key, false]))
+export function createKopf(): Kopf {
+  return {
+    stromkunde: '',
+    interneAuftragsnummer: '',
+    installationsAnzeigeNr: '',
+    zaehlerNummer: '',
+    ausfuehrungsort: '',
+    verteilung: '',
+    ausgefuehrteArbeiten: '',
+    verwendetesMessgeraet: VERWENDETES_MESSGERAET,
+    zeitraumDerMessungen: '',
+    mitarbeiter: '',
+  }
+}
+
+export function createPruefpunkte(): Pruefpunkte {
+  return Object.fromEntries(PRUEFPUNKTE.map((x) => [x.key, false])) as Pruefpunkte
 }
 
 export function createProtokollForm(): ProtokollForm {
-  const partei = (): Partei => ({ art: '', name1: '', name2: '', strasse: '', plzOrt: '' })
-  return {
-    auftraggeber: partei(),
-    auftragnehmer: partei(),
-    installation: {
-      gebaeudeart: '', objektNr: '', instAnzeige: '', anlage: '', stromkunde: '',
-      stockwerkRaum: '', zaehlerNr: '', anlageNr: '',
-    },
-    kontrolle: { durchgefuehrteKontrolle: '', kontrollperiode: '', kontrollumfang: '' },
-    anlageteile: [],
-    sichtpruefung: { checks: unchecked(SICHTPRUEFUNG_ITEMS), schutzSystem: '', erder: '' },
-    funktionspruefung: { checks: unchecked(FUNKTIONSPRUEFUNG_ITEMS) },
-    netzspannung: '',
-    bemerkungen: '',
-    messgeraete: [],
-    pruefungNach: '',
-    schaltgeraetekombination: '',
-    dokumentation: '',
-    pruefergebnis: { keineMaengel: false },
-  }
+  return { kopf: createKopf(), pruefpunkte: createPruefpunkte(), netzspannung: '' }
 }
 
 function isObj(v: unknown): v is Record<string, unknown> {
   return !!v && typeof v === 'object' && !Array.isArray(v)
 }
 
-/** Deep-merges stored (possibly old/partial) data over the defaults; arrays are taken as stored. */
+/** Deep-merges stored (possibly partial) data over the defaults; arrays are taken as stored. */
 function mergeDeep<T>(defaults: T, stored: unknown): T {
   if (stored === undefined || stored === null) return defaults
   if (isObj(defaults)) {
@@ -147,12 +85,8 @@ function mergeDeep<T>(defaults: T, stored: unknown): T {
   return (typeof stored === typeof defaults ? stored : defaults) as T
 }
 
-/** Fills every form field missing in `stored` with its default (migration for older Protokolle). */
+/** Fills every form field missing in `stored` with its default (e.g. partial backup files). */
 export function withFormDefaults<T extends object>(stored: T): T & ProtokollForm {
   const merged = mergeDeep(createProtokollForm(), stored)
   return { ...stored, ...merged } as T & ProtokollForm
-}
-
-export function setAlleSichtpruefungIo(s: Sichtpruefung, value: boolean): Sichtpruefung {
-  return { ...s, checks: Object.fromEntries(SICHTPRUEFUNG_ITEMS.map((i) => [i.key, value])) }
 }

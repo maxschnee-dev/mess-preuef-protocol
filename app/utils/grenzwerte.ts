@@ -102,8 +102,9 @@ export function abschaltstrom(art: UeberstromschutzArt, inText: string): number 
   return null
 }
 
-export function pruefeIkEnde(s: Pick<Stromkreis, 'ueberstromschutzArt' | 'ueberstromschutzIn' | 'ikEnde'>): Pruefung {
-  const ik = parseZahl(s.ikEnde)
+/** I_K (Anfang or Ende, L-PE or L-N) >= I_a of the Überstromschutz of the Stromkreis. */
+export function pruefeIk(s: Pick<Stromkreis, 'ueberstromschutzArt' | 'ueberstromschutzIn'>, wert: string): Pruefung {
+  const ik = parseZahl(wert)
   const ia = abschaltstrom(s.ueberstromschutzArt, s.ueberstromschutzIn)
   if (ia === null) {
     const iN = parseZahl(s.ueberstromschutzIn)
@@ -113,12 +114,6 @@ export function pruefeIkEnde(s: Pick<Stromkreis, 'ueberstromschutzArt' | 'uebers
     return OK
   }
   return vergleiche(ik, (v) => v >= ia, `≥ ${fmt(ia)} A`)
-}
-
-export function pruefeIkAnfang(s: Pick<Stromkreis, 'ikAnfang' | 'ikEnde'>): Pruefung {
-  const ende = parseZahl(s.ikEnde)
-  if (ende === null) return OK
-  return vergleiche(parseZahl(s.ikAnfang), (v) => v >= ende, `≥ ${fmt(ende)} A (I_K Ende)`)
 }
 
 export function pruefeAusloesezeit(s: Pick<Stromkreis, 'rcdArt' | 'ausloesezeit'>): Pruefung {
@@ -140,8 +135,9 @@ export function pruefeNetzspannung(text: string): Pruefung {
 }
 
 /** Fields of a Stromkreis that have a Grenzwert. */
-export type PruefFeldKey = 'schutzleiter' | 'rIso' | 'ikAnfang' | 'ikEnde' | 'ausloesezeit'
-const PRUEF_FELD_KEYS: readonly string[] = ['schutzleiter', 'rIso', 'ikAnfang', 'ikEnde', 'ausloesezeit']
+export type IkKey = 'ikLpeAnfang' | 'ikLpeEnde' | 'ikLnAnfang' | 'ikLnEnde'
+export type PruefFeldKey = 'schutzleiter' | 'rIso' | IkKey | 'ausloesezeit'
+const PRUEF_FELD_KEYS: readonly string[] = ['schutzleiter', 'rIso', 'ikLpeAnfang', 'ikLpeEnde', 'ikLnAnfang', 'ikLnEnde', 'ausloesezeit']
 export function isPruefFeldKey(key: string): key is PruefFeldKey {
   return PRUEF_FELD_KEYS.includes(key)
 }
@@ -151,8 +147,10 @@ export function pruefeFelder(s: Stromkreis): Partial<Record<PruefFeldKey, Pruefu
   return {
     schutzleiter: pruefeSchutzleiter(s.schutzleiter),
     rIso: pruefeRIso(s.rIso),
-    ikAnfang: pruefeIkAnfang(s),
-    ikEnde: pruefeIkEnde(s),
+    ikLpeAnfang: pruefeIk(s, s.ikLpeAnfang),
+    ikLpeEnde: pruefeIk(s, s.ikLpeEnde),
+    ikLnAnfang: pruefeIk(s, s.ikLnAnfang),
+    ikLnEnde: pruefeIk(s, s.ikLnEnde),
     ausloesezeit: pruefeAusloesezeit(s),
   }
 }

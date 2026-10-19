@@ -10,12 +10,13 @@ import type { Protokoll } from './protokoll-store'
 
 /** With a `zertifikat` the PDF is digitally signed (callers pass it for locked Protokolle only). */
 export async function renderPdf(p: Protokoll, options: PdfOptions = {}, zertifikat?: Zertifikat): Promise<Blob> {
-  const [{ default: pdfMake }, { default: vfs }] = await Promise.all([
+  const [{ default: pdfMake }, { default: vfs }, { default: logo }] = await Promise.all([
     import('pdfmake/build/pdfmake'),
     import('pdfmake/build/vfs_fonts'),
+    import('../assets/equans_logo.png?inline'), // data URL, bundled in this lazy chunk and precached
   ])
   pdfMake.addVirtualFileSystem(vfs)
-  const doc = pdfMake.createPdf(buildDocDefinition(p, { ...options, digitalSigniert: !!zertifikat }))
+  const doc = pdfMake.createPdf(buildDocDefinition(p, { logo, ...options, digitalSigniert: !!zertifikat }))
   if (!zertifikat) return doc.getBlob()
   const { signPdf } = await import('./pdf-sign')
   return new Blob([await signPdf(await doc.getBuffer(), zertifikat)], { type: 'application/pdf' })

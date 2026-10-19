@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest'
-import { createProtokollStore, protokollLabel, type KeyValueStorage } from '../app/utils/protokoll-store'
+import { describe, expect, it, vi } from 'vitest'
+import { createProtokollStore, formatGeaendert, protokollLabel, type KeyValueStorage, type Protokoll } from '../app/utils/protokoll-store'
+import type { Kopf } from '../app/utils/protokoll-form'
 
 function fakeStorage(): KeyValueStorage & { data: Map<string, string> } {
   const data = new Map<string, string>()
@@ -11,31 +12,61 @@ function fakeStorage(): KeyValueStorage & { data: Map<string, string> } {
   }
 }
 
+const kopf = (p: Pick<Protokoll, 'kopf'>, patch: Partial<Kopf>) => ({ kopf: { ...p.kopf, ...patch } })
+
 describe('Protokoll-Store', () => {
   it('creates two Protokolle that survive a reload', () => {
     const storage = fakeStorage()
     const store = createProtokollStore(storage)
     const a = store.create()
-    store.update(a.id, { kontrolldatum: '2026-10-01', ortDerInstallation: 'Bern' })
+    store.update(a.id, kopf(a, { ausfuehrungsort: 'Bern' }))
     const b = store.create()
-    store.update(b.id, { kontrolldatum: '2026-10-02', ortDerInstallation: 'Thun' })
+    store.update(b.id, kopf(b, { ausfuehrungsort: 'Thun' }))
 
     const reloaded = createProtokollStore(storage)
-    expect(reloaded.protokolle.map((p) => p.ortDerInstallation)).toEqual(['Bern', 'Thun'])
+    expect(reloaded.protokolle.map((p) => p.kopf.ausfuehrungsort)).toEqual(['Bern', 'Thun'])
     expect(reloaded.protokolle[0]!.stromkreise).toEqual([])
-    expect(reloaded.protokolle[0]!.schemaVersion).toBe(1)
+    expect(reloaded.protokolle[0]!.schemaVersion).toBe(2)
   })
 
-  it('labels a Protokoll as Kontrolldatum · Ort der Installation', () => {
+  it('labels a Protokoll as Ausführungsort · Verteilung · Zeitraum der Messungen', () => {
     const store = createProtokollStore(fakeStorage())
     const p = store.create()
-    store.update(p.id, { kontrolldatum: '2026-10-01', ortDerInstallation: 'Bern' })
-    expect(protokollLabel(store.protokolle[0]!)).toBe('01.10.2026 · Bern')
+    store.update(p.id, kopf(p, { ausfuehrungsort: 'Bern', verteilung: 'HV 1', zeitraumDerMessungen: '14.–16.10.2026' }))
+    expect(protokollLabel(store.protokolle[0]!)).toBe('Bern · HV 1 · 14.–16.10.2026')
   })
 
-  it('labels an empty Protokoll with a placeholder', () => {
+  it('leaves empty parts out of the label and names an empty Protokoll', () => {
     const store = createProtokollStore(fakeStorage())
-    expect(protokollLabel(store.create())).toBe('Ohne Datum · Ohne Ort')
+    const p = store.create()
+    expect(protokollLabel(p)).toBe('Ohne Angaben')
+    store.update(p.id, kopf(p, { verteilung: 'HV 1' }))
+    expect(protokollLabel(store.protokolle[0]!)).toBe('HV 1')
+  })
+
+  it('lets several Protokolle share a Verteilung', () => {
+    const store = createProtokollStore(fakeStorage())
+    for (const zeit of ['Mo', 'Di']) {
+      const p = store.create()
+      store.update(p.id, kopf(p, { verteilung: 'HV 1', zeitraumDerMessungen: zeit }))
+    }
+    expect(store.protokolle.map(protokollLabel)).toEqual(['HV 1 · Mo', 'HV 1 · Di'])
+  })
+
+  it('tracks the last-edited time and formats it', () => {
+    vi.useFakeTimers()
+    try {
+      vi.setSystemTime(new Date(2026, 9, 19, 14, 32))
+      const store = createProtokollStore(fakeStorage())
+      const p = store.create()
+      expect(formatGeaendert(p.geaendert)).toBe('19.10.2026 14:32')
+      vi.setSystemTime(new Date(2026, 9, 20, 8, 5))
+      store.update(p.id, { netzspannung: '230' })
+      expect(formatGeaendert(store.selected!.geaendert)).toBe('20.10.2026 08:05')
+      expect(formatGeaendert('nope')).toBe('')
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('switches the selected Protokoll and remembers it across reloads', () => {
@@ -47,17 +78,17 @@ describe('Protokoll-Store', () => {
     expect(createProtokollStore(storage).selectedId).toBe(a.id)
   })
 
-  it('duplicates a Protokoll with a new id and selects the copy', () => {
+  it('duplicates a Protokoll with its Kopf, a new id and selects the copy', () => {
     const store = createProtokollStore(fakeStorage())
     const a = store.create()
-    store.update(a.id, { ortDerInstallation: 'Bern' })
+    store.update(a.id, kopf(a, { ausfuehrungsort: 'Bern', verteilung: 'HV 1', mitarbeiter: 'Hans' }))
     const copy = store.duplicate(a.id)!
     expect(copy.id).not.toBe(a.id)
-    expect(copy.ortDerInstallation).toBe('Bern')
+    expect(copy.kopf).toEqual(store.protokolle.find((p) => p.id === a.id)!.kopf)
     expect(store.protokolle).toHaveLength(2)
     expect(store.selectedId).toBe(copy.id)
-    store.update(copy.id, { ortDerInstallation: 'Thun' })
-    expect(store.protokolle.find((p) => p.id === a.id)!.ortDerInstallation).toBe('Bern')
+    store.update(copy.id, kopf(copy, { ausfuehrungsort: 'Thun' }))
+    expect(store.protokolle.find((p) => p.id === a.id)!.kopf.ausfuehrungsort).toBe('Bern')
   })
 
   it('deletes a Protokoll and falls back to another selection', () => {
@@ -77,25 +108,17 @@ describe('Protokoll-Store', () => {
     const storage = fakeStorage()
     const store = createProtokollStore(storage)
     const a = store.create()
-    store.update(a.id, { kontrolldatum: '2026-10-01', ortDerInstallation: 'Bern' })
+    store.update(a.id, kopf(a, { ausfuehrungsort: 'Bern', verteilung: 'HV 1' }))
     const json = store.exportJson()
-    expect(JSON.parse(json)).toMatchObject({ schemaVersion: 1, companies: [], messgeraete: [] })
+    expect(JSON.parse(json)).toMatchObject({ schemaVersion: 2 })
+    expect(JSON.parse(json)).not.toHaveProperty('companies')
 
     storage.data.clear()
     const wiped = createProtokollStore(storage)
     expect(wiped.protokolle).toEqual([])
     wiped.importJson(json)
-    expect(wiped.protokolle.map((p) => p.ortDerInstallation)).toEqual(['Bern'])
+    expect(wiped.protokolle.map((p) => p.kopf)).toEqual([store.protokolle[0]!.kopf])
     expect(createProtokollStore(storage).protokolle).toHaveLength(1)
-  })
-
-  it('keeps companies/Messgeräte through export and import', () => {
-    const store = createProtokollStore(fakeStorage())
-    store.setStammdaten({ companies: [{ name: 'Elektro AG' }], messgeraete: [{ name: 'Fluke 1664' }] })
-    const other = createProtokollStore(fakeStorage())
-    other.importJson(store.exportJson())
-    expect(other.companies).toEqual([{ name: 'Elektro AG' }])
-    expect(other.messgeraete).toEqual([{ name: 'Fluke 1664' }])
   })
 
   it('rejects invalid import without touching existing data', () => {
@@ -110,5 +133,32 @@ describe('Protokoll-Store', () => {
     const storage = fakeStorage()
     storage.setItem('mpp:v1:state', '{{{')
     expect(createProtokollStore(storage).protokolle).toEqual([])
+  })
+})
+
+describe('saved VSEI 133-D Protokolle', () => {
+  const vsei = JSON.stringify({
+    schemaVersion: 1, selectedId: 'a', companies: [{ name: 'Elektro AG' }], messgeraete: [],
+    protokolle: [{ id: 'a', schemaVersion: 1, kontrolldatum: '2026-10-01', ortDerInstallation: 'Bern', auftraggeber: { name1: 'Muster AG' }, stromkreise: [] }],
+    zertifikat: { name: 'x', certPem: 'BEGIN CERTIFICATE', keyPem: 'PRIVATE KEY', erstellt: '' },
+  })
+
+  it('are dropped when the app opens, without crashing; the Zertifikat stays', () => {
+    const storage = fakeStorage()
+    storage.setItem('mpp:v1:state', vsei)
+    const store = createProtokollStore(storage)
+    expect(store.protokolle).toEqual([])
+    expect(store.selectedId).toBeNull()
+    expect(store.zertifikat).toMatchObject({ name: 'x' })
+    store.create()
+    expect(createProtokollStore(storage).protokolle).toHaveLength(1)
+    expect(JSON.parse(storage.getItem('mpp:v1:state')!)).not.toHaveProperty('companies')
+  })
+
+  it('are dropped from an imported backup', () => {
+    const store = createProtokollStore(fakeStorage())
+    store.create()
+    store.importJson(vsei)
+    expect(store.protokolle).toEqual([])
   })
 })
