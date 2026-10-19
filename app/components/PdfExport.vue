@@ -22,8 +22,8 @@ async function run() {
         setZertifikat(z)
       }
     }
-    const result = await exportPdf(p, { legende: legende.value }, z)
-    if (result === 'downloaded') toast.add({ title: 'PDF heruntergeladen', color: 'success' })
+    await exportPdf(p, { legende: legende.value }, z)
+    toast.add({ title: 'PDF heruntergeladen', color: 'success' })
   } catch (e) {
     console.error(e)
     toast.add({ title: 'PDF-Export fehlgeschlagen', color: 'error' })
