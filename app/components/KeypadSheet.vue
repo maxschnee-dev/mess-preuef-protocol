@@ -95,7 +95,7 @@ watch(() => route.path, (path) => {
   const t = target.value
   const p = selected.value
   if (!t || !p) return
-  if (t.kind === 'netz') return void (stepFromPathIs(path, 'pruefungen') || close())
+  if (t.kind === 'netz') return void (stepFromPathIs(path, 'abschluss') || close())
   const i = p.stromkreise.findIndex((s) => s.id === t.id)
   if (i < 0 || path !== stromkreisPath(p.id, i + 1)) close()
 })

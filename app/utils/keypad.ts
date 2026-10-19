@@ -36,7 +36,7 @@ export const FELD_INFO: Record<StammKey | MesswertKey | 'netzspannung', FeldInfo
   ikAnfang: { label: 'I_K Anfang', unit: 'A', schnellwerte: [] },
   ikEnde: { label: 'I_K Ende', unit: 'A', schnellwerte: [] },
   ausloesezeit: { label: 'Auslösezeit', unit: 'ms', schnellwerte: [] },
-  netzspannung: { label: 'Netzspannung L–N', unit: 'V', schnellwerte: [] },
+  netzspannung: { label: 'Gemessene Spannung', unit: 'V', schnellwerte: [] },
 }
 
 export const feldKey = (t: KeypadTarget): keyof typeof FELD_INFO => (t.kind === 'netz' ? 'netzspannung' : t.key)

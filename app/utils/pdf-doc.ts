@@ -6,7 +6,7 @@
  * Unterschrift Mitarbeiter); further Stromkreise continue on the following pages. Verstoesse are
  * not rendered.
  */
-import { ELEKTRO_INSTALLATEUR, ELEKTRO_INSTALLATEUR_ADRESSE } from './protokoll-form'
+import { ELEKTRO_INSTALLATEUR, ELEKTRO_INSTALLATEUR_ADRESSE, PRUEFPUNKTE } from './protokoll-form'
 import { protokollLabel, type Protokoll, type Stromkreis } from './protokoll-store'
 import type { Signatur } from './signaturen'
 import { RCD_ARTEN, UEBERSTROMSCHUTZ_ARTEN } from './stromkreis'
@@ -148,8 +148,29 @@ function signaturBlock(s: Signatur): Node {
 // One function per box so that #21 (Prüfpunkte, Gemessene Spannung) and #23 (Unterschrift) only
 // replace the body of their box; the row, titles and heights stay.
 
-function pruefpunkteBox(_p: Protokoll): Node {
-  return section('Prüfpunkte', [], RESERVIERT_HOEHE)
+/** Drawn checkbox (no font glyph needed): an empty square, crossed when confirmed. */
+function checkbox(bestaetigt: boolean): Node {
+  const kante = 8
+  return {
+    canvas: [
+      { type: 'rect', x: 0, y: 0, w: kante, h: kante, lineWidth: 0.7 },
+      ...(bestaetigt
+        ? [
+            { type: 'line', x1: 1.5, y1: 1.5, x2: kante - 1.5, y2: kante - 1.5, lineWidth: 1 },
+            { type: 'line', x1: kante - 1.5, y1: 1.5, x2: 1.5, y2: kante - 1.5, lineWidth: 1 },
+          ]
+        : []),
+    ],
+    width: 12,
+  }
+}
+
+function pruefpunkteBox(p: Protokoll): Node {
+  const zeilen = PRUEFPUNKTE.map(({ key, label }): Node => ({
+    columns: [checkbox(p.pruefpunkte[key]), { text: label, style: 'value' }],
+    margin: [0, 0, 0, 2],
+  }))
+  return section('Prüfpunkte', zeilen, RESERVIERT_HOEHE)
 }
 
 function gemesseneSpannungBox(p: Protokoll): Node {

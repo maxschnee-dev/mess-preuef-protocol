@@ -24,10 +24,24 @@ export interface Kopf {
   mitarbeiter: string
 }
 
+/** The five Prüfpunkte, in the order of the template. */
+export const PRUEFPUNKTE = [
+  { key: 'basisschutz', label: 'Basisschutz erfüllt' },
+  { key: 'brandabschottungen', label: 'Brandabschottungen' },
+  { key: 'betriebsmittel', label: 'Richtige Auswahl und Bezeichnung der Betriebsmittel' },
+  { key: 'stromkreiseBezeichnung', label: 'Bemessung / Kennzeichnung der Stromkreise / Leitungen' },
+  { key: 'schemas', label: 'Schemas und Legenden elektronisch nachgeführt' },
+] as const
+
+export type PruefpunktKey = (typeof PRUEFPUNKTE)[number]['key']
+/** true = confirmed; false = blank (not confirmed). There is no third state. */
+export type Pruefpunkte = Record<PruefpunktKey, boolean>
+
 /** All form fields of a Protokoll besides Stromkreise and Unterschrift. */
 export interface ProtokollForm {
   kopf: Kopf
-  /** Gemessene Netzspannung, single value in V (e.g. "230") */
+  pruefpunkte: Pruefpunkte
+  /** Gemessene Spannung, single value in V (e.g. "230"). Named `netzspannung` since v1; the Grenzwert check is `pruefeNetzspannung`. */
   netzspannung: string
 }
 
@@ -46,8 +60,12 @@ export function createKopf(): Kopf {
   }
 }
 
+export function createPruefpunkte(): Pruefpunkte {
+  return Object.fromEntries(PRUEFPUNKTE.map((x) => [x.key, false])) as Pruefpunkte
+}
+
 export function createProtokollForm(): ProtokollForm {
-  return { kopf: createKopf(), netzspannung: '' }
+  return { kopf: createKopf(), pruefpunkte: createPruefpunkte(), netzspannung: '' }
 }
 
 function isObj(v: unknown): v is Record<string, unknown> {

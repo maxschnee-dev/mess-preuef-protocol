@@ -143,6 +143,31 @@ describe('buildDocDefinition', () => {
     expect(texts(buildDocDefinition(p))).toContain('231 V')
   })
 
+  it('prints the five Prüfpunkte with ticked or blank boxes in the Prüfpunkte box', () => {
+    const p = filled()
+    p.pruefpunkte = { ...p.pruefpunkte, basisschutz: true, schemas: true }
+    const row = ((buildDocDefinition(p) as Node).content as Node[]).find((n) => n.columns)!
+    const box = walk(row.columns[0]).filter((n) => n.columns && n.columns.length === 2)
+    // each Prüfpunkt: a drawn box (crossed when confirmed) next to its label
+    const state = box.map((n) => [n.columns[1].text, n.columns[0].canvas.some((c: Node) => c.type === 'line')])
+    expect(state).toEqual([
+      ['Basisschutz erfüllt', true],
+      ['Brandabschottungen', false],
+      ['Richtige Auswahl und Bezeichnung der Betriebsmittel', false],
+      ['Bemessung / Kennzeichnung der Stromkreise / Leitungen', false],
+      ['Schemas und Legenden elektronisch nachgeführt', true],
+    ])
+    expect(box.every((n) => n.columns[0].canvas.some((c: Node) => c.type === 'rect'))).toBe(true)
+  })
+
+  it('prints all Prüfpunkte blank and no value for a new Protokoll', () => {
+    const row = ((buildDocDefinition(createProtokoll()) as Node).content as Node[]).find((n) => n.columns)!
+    const canvases = walk(row.columns[0]).filter((n) => n.canvas)
+    expect(canvases).toHaveLength(5)
+    expect(canvases.some((n) => n.canvas.some((c: Node) => c.type === 'line'))).toBe(false)
+    expect(walk(row.columns[1]).flatMap((n) => (typeof n.text === 'string' ? [n.text] : []))).not.toContain(' V')
+  })
+
   it('embeds signature images only when signed', () => {
     const p = filled()
     expect(walk((buildDocDefinition(p) as Node).content).some((n) => n.image)).toBe(false)
@@ -154,9 +179,9 @@ describe('buildDocDefinition', () => {
   })
 
   it('adds the legend page only when opted in', () => {
-    const without = JSON.stringify(buildDocDefinition(filled()))
+    const without = texts(buildDocDefinition(filled()))
     const withLegend = buildDocDefinition(filled(), { legende: true })
-    expect(without).not.toContain('Legende')
+    expect(without).not.toContain('Legende') // the Prüfpunkt "Schemas und Legenden …" is a longer text
     expect(texts(withLegend)).toContain('Legende')
     expect(walk((withLegend as Node).content).some((n) => n.pageBreak === 'before')).toBe(true)
   })

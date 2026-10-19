@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createProtokoll, createProtokollStore, STORAGE_KEY } from '../app/utils/protokoll-store'
-import { VERWENDETES_MESSGERAET } from '../app/utils/protokoll-form'
+import { PRUEFPUNKTE, VERWENDETES_MESSGERAET } from '../app/utils/protokoll-form'
 
 function fakeStorage(initial?: string) {
   const m = new Map<string, string>(initial ? [[STORAGE_KEY, initial]] : [])
@@ -51,5 +51,56 @@ describe('loading partial data', () => {
     const again = createProtokollStore(st).selected!
     expect(again.kopf.mitarbeiter).toBe('Hans Muster')
     expect(again.netzspannung).toBe('231')
+  })
+})
+
+describe('Prüfpunkte', () => {
+  const KEYS = ['basisschutz', 'brandabschottungen', 'betriebsmittel', 'stromkreiseBezeichnung', 'schemas']
+
+  it('are five labelled checks that start blank (not confirmed)', () => {
+    expect(PRUEFPUNKTE.map((x) => x.label)).toEqual([
+      'Basisschutz erfüllt',
+      'Brandabschottungen',
+      'Richtige Auswahl und Bezeichnung der Betriebsmittel',
+      'Bemessung / Kennzeichnung der Stromkreise / Leitungen',
+      'Schemas und Legenden elektronisch nachgeführt',
+    ])
+    const p = createProtokoll()
+    expect(Object.keys(p.pruefpunkte)).toEqual(KEYS)
+    expect(Object.values(p.pruefpunkte)).toEqual([false, false, false, false, false])
+  })
+
+  it('default to blank when a schemaVersion 2 Protokoll without Prüfpunkte is loaded, keeping its data', () => {
+    const s = createProtokollStore(fakeStorage())
+    s.importJson(JSON.stringify({ schemaVersion: 2, protokolle: [{ id: 'a', netzspannung: '231', kopf: { verteilung: 'HV 1' } }] }))
+    const p = s.selected!
+    expect(Object.values(p.pruefpunkte)).toEqual([false, false, false, false, false])
+    expect(p.netzspannung).toBe('231')
+    expect(p.kopf.verteilung).toBe('HV 1')
+  })
+
+  it('keeps stored ticks, defaults missing ones and ignores non-boolean values', () => {
+    const s = createProtokollStore(fakeStorage())
+    s.importJson(JSON.stringify({ schemaVersion: 2, protokolle: [{ id: 'a', pruefpunkte: { basisschutz: true, schemas: 'ja' } }] }))
+    expect(s.selected!.pruefpunkte).toEqual({ basisschutz: true, brandabschottungen: false, betriebsmittel: false, stromkreiseBezeichnung: false, schemas: false })
+  })
+
+  it('persist when edited', () => {
+    const st = fakeStorage()
+    const s = createProtokollStore(st)
+    const p = s.create()
+    expect(s.update(p.id, { pruefpunkte: { ...p.pruefpunkte, brandabschottungen: true } })).toBe(true)
+    expect(createProtokollStore(st).selected!.pruefpunkte.brandabschottungen).toBe(true)
+  })
+
+  it('and Gemessene Spannung are read-only once the Protokoll is locked', () => {
+    const s = createProtokollStore(fakeStorage())
+    const p = s.create()
+    s.update(p.id, { netzspannung: '230' })
+    s.sign(p.id, 'kontrolleur', { name: 'Hans Muster', datum: '2026-10-19', bild: 'data:image/png;base64,AAAA' })
+    expect(s.selected!.gesperrt).toBe(true)
+    expect(s.update(p.id, { pruefpunkte: { ...p.pruefpunkte, basisschutz: true }, netzspannung: '240' })).toBe(false)
+    expect(s.selected!.pruefpunkte.basisschutz).toBe(false)
+    expect(s.selected!.netzspannung).toBe('230')
   })
 })
