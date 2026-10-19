@@ -1,7 +1,10 @@
 <script setup lang="ts">
+import { pruefeNetzspannung } from '~/utils/grenzwerte'
 import type { Kopf } from '~/utils/protokoll-form'
 
 const { selected, update, isLocked } = useProtokolle()
+const keypad = useKeypad()
+const spannungPruefung = computed(() => pruefeNetzspannung(selected.value?.netzspannung ?? ''))
 
 const felder: { key: keyof Kopf; label: string; multiline?: boolean }[] = [
   { key: 'stromkunde', label: 'Stromkunde' },
@@ -31,6 +34,15 @@ function setFeld(key: keyof Kopf, value: unknown) {
           <UTextarea v-if="f.multiline" :model-value="selected.kopf[f.key]" :rows="3" class="w-full" @update:model-value="setFeld(f.key, $event)" />
           <UInput v-else :model-value="selected.kopf[f.key]" class="w-full" @update:model-value="setFeld(f.key, $event)" />
         </UFormField>
+        <MesswertKarte
+          label="Gemessene Spannung"
+          unit="V"
+          :model-value="selected.netzspannung"
+          :pruefung="spannungPruefung"
+          keypad-key="netzspannung"
+          :aktiv="keypad.target.value?.kind === 'netz'"
+          @open="keypad.open({ kind: 'netz' })"
+        />
       </div>
     </UCard>
   </fieldset>
