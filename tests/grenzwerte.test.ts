@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest'
+import type { PruefFeldKey } from '../app/utils/grenzwerte'
 import { createStromkreis } from '../app/utils/stromkreis'
 import {
   parseZahl,
   pruefeAusloesezeit,
   grenzwertText,
-  pruefeIkAnfang,
-  pruefeIkEnde,
+  pruefeIk,
   pruefeNetzspannung,
   pruefeRIso,
   pruefeSchutzleiter,
@@ -50,46 +50,48 @@ describe('Schutzleiter <= 1 Ohm', () => {
   })
 })
 
-describe('I_K Ende >= I_a', () => {
+describe('I_K >= I_a', () => {
   it('LS B: 5 x I_N', () => {
-    expect(pruefeIkEnde(sk({ ueberstromschutzArt: 'LS-B', ueberstromschutzIn: '51', ikEnde: '255' })).ok).toBe(true)
-    expect(pruefeIkEnde(sk({ ueberstromschutzArt: 'LS-B', ueberstromschutzIn: '51', ikEnde: '254' }))).toEqual({ ok: false, boundary: '≥ 255 A' })
+    expect(pruefeIk(sk({ ueberstromschutzArt: 'LS-B', ueberstromschutzIn: '51' }), '255').ok).toBe(true)
+    expect(pruefeIk(sk({ ueberstromschutzArt: 'LS-B', ueberstromschutzIn: '51' }), '254')).toEqual({ ok: false, boundary: '≥ 255 A' })
   })
   it('LS C: 10 x I_N, LS D: 20 x I_N', () => {
-    expect(pruefeIkEnde(sk({ ueberstromschutzArt: 'LS-C', ueberstromschutzIn: '16', ikEnde: '159' })).boundary).toBe('≥ 160 A')
-    expect(pruefeIkEnde(sk({ ueberstromschutzArt: 'LS-C', ueberstromschutzIn: '16', ikEnde: '160' })).ok).toBe(true)
-    expect(pruefeIkEnde(sk({ ueberstromschutzArt: 'LS-D', ueberstromschutzIn: '10', ikEnde: '199' })).ok).toBe(false)
-    expect(pruefeIkEnde(sk({ ueberstromschutzArt: 'LS-D', ueberstromschutzIn: '10', ikEnde: '200' })).ok).toBe(true)
+    expect(pruefeIk(sk({ ueberstromschutzArt: 'LS-C', ueberstromschutzIn: '16' }), '159').boundary).toBe('≥ 160 A')
+    expect(pruefeIk(sk({ ueberstromschutzArt: 'LS-C', ueberstromschutzIn: '16' }), '160').ok).toBe(true)
+    expect(pruefeIk(sk({ ueberstromschutzArt: 'LS-D', ueberstromschutzIn: '10' }), '199').ok).toBe(false)
+    expect(pruefeIk(sk({ ueberstromschutzArt: 'LS-D', ueberstromschutzIn: '10' }), '200').ok).toBe(true)
   })
   it('gG: 0.4 s column up to 32 A, 5 s column above', () => {
-    expect(pruefeIkEnde(sk({ ueberstromschutzArt: 'gG', ueberstromschutzIn: '16', ikEnde: '106' }))).toEqual({ ok: false, boundary: '≥ 107 A' })
-    expect(pruefeIkEnde(sk({ ueberstromschutzArt: 'gG', ueberstromschutzIn: '16', ikEnde: '107' })).ok).toBe(true)
-    expect(pruefeIkEnde(sk({ ueberstromschutzArt: 'gG', ueberstromschutzIn: '32', ikEnde: '264' })).boundary).toBe('≥ 265 A')
-    expect(pruefeIkEnde(sk({ ueberstromschutzArt: 'gG', ueberstromschutzIn: '35', ikEnde: '172' })).boundary).toBe('≥ 173 A')
-    expect(pruefeIkEnde(sk({ ueberstromschutzArt: 'gG', ueberstromschutzIn: '63', ikEnde: '320' })).ok).toBe(true)
+    expect(pruefeIk(sk({ ueberstromschutzArt: 'gG', ueberstromschutzIn: '16' }), '106')).toEqual({ ok: false, boundary: '≥ 107 A' })
+    expect(pruefeIk(sk({ ueberstromschutzArt: 'gG', ueberstromschutzIn: '16' }), '107').ok).toBe(true)
+    expect(pruefeIk(sk({ ueberstromschutzArt: 'gG', ueberstromschutzIn: '32' }), '264').boundary).toBe('≥ 265 A')
+    expect(pruefeIk(sk({ ueberstromschutzArt: 'gG', ueberstromschutzIn: '35' }), '172').boundary).toBe('≥ 173 A')
+    expect(pruefeIk(sk({ ueberstromschutzArt: 'gG', ueberstromschutzIn: '63' }), '320').ok).toBe(true)
   })
   it('gG without table value is a neutral hint, not a Verstoss', () => {
-    const r = pruefeIkEnde(sk({ ueberstromschutzArt: 'gG', ueberstromschutzIn: '13', ikEnde: '1' }))
+    const r = pruefeIk(sk({ ueberstromschutzArt: 'gG', ueberstromschutzIn: '13' }), '1')
     expect(r).toMatchObject({ ok: true, boundary: 'gG ohne Tabellenwert – nicht geprüft', nichtGeprueft: true })
     expect(pruefeStromkreis(sk({ ueberstromschutzArt: 'gG', ueberstromschutzIn: '13', ikEnde: '1' }))).toEqual({})
   })
   it('unchecked: other device, unknown gG size, missing I_N, empty I_K', () => {
-    expect(pruefeIkEnde(sk({ ueberstromschutzArt: 'andere', ueberstromschutzIn: '16', ikEnde: '1' })).ok).toBe(true)
-    expect(pruefeIkEnde(sk({ ueberstromschutzArt: 'gG', ueberstromschutzIn: '13', ikEnde: '1' })).ok).toBe(true)
-    expect(pruefeIkEnde(sk({ ueberstromschutzArt: 'LS-B', ueberstromschutzIn: '', ikEnde: '1' })).ok).toBe(true)
-    expect(pruefeIkEnde(sk({ ueberstromschutzArt: 'LS-B', ueberstromschutzIn: '16', ikEnde: '' })).ok).toBe(true)
+    expect(pruefeIk(sk({ ueberstromschutzArt: 'andere', ueberstromschutzIn: '16' }), '1').ok).toBe(true)
+    expect(pruefeIk(sk({ ueberstromschutzArt: 'gG', ueberstromschutzIn: '13' }), '1').ok).toBe(true)
+    expect(pruefeIk(sk({ ueberstromschutzArt: 'LS-B', ueberstromschutzIn: '' }), '1').ok).toBe(true)
+    expect(pruefeIk(sk({ ueberstromschutzArt: 'LS-B', ueberstromschutzIn: '16' }), '').ok).toBe(true)
   })
 })
 
-describe('I_K Anfang >= I_K Ende', () => {
-  it('boundary', () => {
-    expect(pruefeIkAnfang(sk({ ikAnfang: '300', ikEnde: '300' })).ok).toBe(true)
-    expect(pruefeIkAnfang(sk({ ikAnfang: '299', ikEnde: '300' }))).toEqual({ ok: false, boundary: '≥ 300 A (I_K Ende)' })
+describe('alle vier I_K gegen denselben Grenzwert', () => {
+  const ls = { ueberstromschutzArt: 'LS-B', ueberstromschutzIn: '16' }
+  it.each(['ikLpeAnfang', 'ikLpeEnde', 'ikLnAnfang', 'ikLnEnde'])('%s: Verstoss unter I_a, ok ab I_a', (key) => {
+    expect(pruefeStromkreis(sk({ ...ls, [key]: '79' }))).toEqual({ [key]: '≥ 80 A' })
+    expect(pruefeStromkreis(sk({ ...ls, [key]: '80' }))).toEqual({})
+    expect(grenzwertText(sk(ls), key as PruefFeldKey)).toBe('≥ 80 A')
   })
-  it('needs both values', () => {
-    expect(pruefeIkAnfang(sk({ ikAnfang: '', ikEnde: '300' })).ok).toBe(true)
-    expect(pruefeIkAnfang(sk({ ikAnfang: '10', ikEnde: '' })).ok).toBe(true)
+  it('L-PE and L-N are independent', () => {
+    expect(Object.keys(pruefeStromkreis(sk({ ...ls, ikLpeEnde: '10', ikLnAnfang: '500' })))).toEqual(['ikLpeEnde'])
   })
+  it('no Überstromschutz, no Grenzwert', () => expect(pruefeStromkreis(sk({ ikLnEnde: '1' }))).toEqual({}))
 })
 
 describe('Auslösezeit', () => {
@@ -128,16 +130,16 @@ describe('grenzwertText', () => {
   it('gives the limit without a value, null without a Grenzwert', () => {
     const s = sk({ ueberstromschutzArt: 'LS-B', ueberstromschutzIn: '16' })
     expect(grenzwertText(s, 'rIso')).toBe('≥ 1.0 MΩ')
-    expect(grenzwertText(s, 'ikEnde')).toBe('≥ 80 A')
-    expect(grenzwertText(sk({}), 'ikEnde')).toBeNull()
+    expect(grenzwertText(s, 'ikLpeEnde')).toBe('≥ 80 A')
+    expect(grenzwertText(sk({}), 'ikLpeEnde')).toBeNull()
   })
 })
 
 describe('pruefeStromkreis / verstoesseDesProtokolls', () => {
   it('collects Verstösse per field', () => {
-    const s = sk({ rIso: '0,5', schutzleiter: '0,2', ikAnfang: '10', ikEnde: '20' })
+    const s = sk({ rIso: '0,5', schutzleiter: '0,2', ueberstromschutzArt: 'LS-B', ueberstromschutzIn: '16', ikLpeAnfang: '10', ikLnEnde: '20', ikLnAnfang: '90' })
     const r = pruefeStromkreis(s)
-    expect(Object.keys(r).sort()).toEqual(['ikAnfang', 'rIso'])
+    expect(Object.keys(r).sort()).toEqual(['ikLnEnde', 'ikLpeAnfang', 'rIso'])
     expect(r.rIso).toBe('≥ 1.0 MΩ')
   })
   it('counts across Stromkreise and Netzspannung', () => {

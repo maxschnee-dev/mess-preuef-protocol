@@ -104,3 +104,32 @@ describe('Prüfpunkte', () => {
     expect(s.selected!.netzspannung).toBe('230')
   })
 })
+
+describe('loading Stromkreise stored before L-PE / L-N', () => {
+  const alt = { id: 's1', nr: '1', bezeichnung: 'Küche', rIso: '500', ikAnfang: '300', ikEnde: '260' }
+  const laden = (stromkreise: unknown[]) => {
+    const s = createProtokollStore(fakeStorage())
+    s.importJson(JSON.stringify({ schemaVersion: 2, protokolle: [{ id: 'a', stromkreise }] }))
+    return s.selected!.stromkreise
+  }
+
+  it('maps the old single I_K pair to L-PE, leaves L-N and Bemerkungen empty and drops the old keys', () => {
+    const [sk] = laden([alt])
+    expect(sk).toMatchObject({ bezeichnung: 'Küche', rIso: '500', ikLpeAnfang: '300', ikLpeEnde: '260', ikLnAnfang: '', ikLnEnde: '', bemerkungen: '' })
+    expect(sk).not.toHaveProperty('ikAnfang')
+    expect(sk).not.toHaveProperty('ikEnde')
+  })
+
+  it('keeps new values over old ones and fills every missing field', () => {
+    const [sk] = laden([{ id: 's2', ikAnfang: '1', ikLpeAnfang: '400', bemerkungen: 'ok' }])
+    expect(sk).toMatchObject({ ikLpeAnfang: '400', ikLpeEnde: '', bemerkungen: 'ok', schutzleiter: '', ueberstromschutzArt: '' })
+  })
+
+  it('survives garbage entries and persists the migrated shape', () => {
+    const st = fakeStorage()
+    const s = createProtokollStore(st)
+    s.importJson(JSON.stringify({ schemaVersion: 2, protokolle: [{ id: 'a', stromkreise: [alt, null, 'x'] }] }))
+    expect(s.selected!.stromkreise).toHaveLength(1)
+    expect(createProtokollStore(st).selected!.stromkreise[0]!.ikLpeEnde).toBe('260')
+  })
+})

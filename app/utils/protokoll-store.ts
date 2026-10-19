@@ -5,6 +5,7 @@
 
 import { isGesperrt, isSignatureComplete, leereSignaturen, signPatch, unlockPatch, type Signatur, type Signaturen, type Unterzeichner } from './signaturen'
 import { isZertifikat, type Zertifikat } from './digitale-signatur'
+import { normalisiereStromkreis } from './stromkreis'
 import { createProtokollForm, withFormDefaults, type ProtokollForm } from './protokoll-form'
 
 /** 2 = Equans Erstprüfungsprotokoll (ADR 0001); VSEI 133-D Protokolle (1) are dropped on load/import. */
@@ -47,12 +48,18 @@ export interface Stromkreis {
   /** I_Leck in mA */
   iLeck: string
   // Messungen unter Spannung
-  /** I_K Anfang in A */
-  ikAnfang: string
-  /** I_K Ende in A */
-  ikEnde: string
+  /** I_K Anfang L-PE in A */
+  ikLpeAnfang: string
+  /** I_K Ende L-PE in A */
+  ikLpeEnde: string
+  /** I_K Anfang L-N in A */
+  ikLnAnfang: string
+  /** I_K Ende L-N in A */
+  ikLnEnde: string
   /** RCD-Auslösezeit in ms */
   ausloesezeit: string
+  /** Free-text Bemerkungen of this Stromkreis (printed under "Weiteres") */
+  bemerkungen: string
 }
 
 export interface Protokoll extends ProtokollForm {
@@ -105,6 +112,12 @@ export function formatGeaendert(iso: string): string {
   return `${z(d.getDate())}.${z(d.getMonth() + 1)}.${d.getFullYear()} ${z(d.getHours())}:${z(d.getMinutes())}`
 }
 
+/** Stromkreise stored before L-PE / L-N and Bemerkungen get the current shape; unusable entries are dropped. */
+function normalisiereStromkreise(p: Protokoll): Protokoll {
+  const liste = Array.isArray(p.stromkreise) ? p.stromkreise : []
+  return { ...p, stromkreise: liste.map(normalisiereStromkreis).filter((s): s is Stromkreis => s !== null) }
+}
+
 function parseBackup(json: string): BackupData {
   const raw = JSON.parse(json) as Partial<BackupData> | null
   if (!raw || typeof raw !== 'object' || !Array.isArray(raw.protokolle)) {
@@ -112,7 +125,7 @@ function parseBackup(json: string): BackupData {
   }
   // Older schemaVersions are VSEI 133-D Protokolle: dropped, not migrated (ADR 0001). The Zertifikat is kept.
   const aktuell = typeof raw.schemaVersion === 'number' && raw.schemaVersion >= SCHEMA_VERSION
-  const protokolle = (aktuell ? raw.protokolle : []).map((p) => withFormDefaults({ ...createProtokoll(), ...p }))
+  const protokolle = (aktuell ? raw.protokolle : []).map((p) => normalisiereStromkreise(withFormDefaults({ ...createProtokoll(), ...p })))
   const selectedId = protokolle.some((p) => p.id === raw.selectedId) ? raw.selectedId! : (protokolle[0]?.id ?? null)
   return {
     schemaVersion: SCHEMA_VERSION,

@@ -81,23 +81,25 @@ describe('buildDocDefinition', () => {
     ])
     expect(t.body[1].map((c: Node) => c.text).filter(Boolean)).toEqual([
       'Art / Typ', 'Anz.', 'mm²', 'Art', 'I_N [A]',
-      'Schutzleiter [Ω]', 'R_ISO [MΩ]', 'I_Leck [mA]', 'I_K Anfang [A]', 'I_K Ende [A]',
+      'Schutzleiter [Ω]', 'R_ISO [MΩ] / I_Leck [mA]', 'I_K L-PE [A]', 'I_K L-N [A]',
       'I_N [A]', 'Art', 'I_ΔN [mA]', 'Auslösezeit [ms]',
     ])
+    expect(t.body[2].map((c: Node) => c.text).filter(Boolean)).toEqual(['Anfang', 'Ende', 'Anfang', 'Ende'])
+    expect(t.headerRows).toBe(3)
     expect(t.widths).toHaveLength(t.body[0].length)
   })
 
   it('puts a Stromkreis into the columns of its groups', () => {
     const p = filled()
     p.stromkreise = addStromkreis([])
-    p.stromkreise = updateStromkreis(p.stromkreise, p.stromkreise[0]!.id, { bezeichnung: 'Waschküche', schutzleiter: '0.2', rIso: '500', ikEnde: '300', rcdIdn: '30', ausloesezeit: '22' })
+    p.stromkreise = updateStromkreis(p.stromkreise, p.stromkreise[0]!.id, { bezeichnung: 'Waschküche', schutzleiter: '0.2', rIso: '500', iLeck: '0,1', ikLpeAnfang: '310', ikLpeEnde: '300', ikLnAnfang: '290', ikLnEnde: '280', rcdIdn: '30', ausloesezeit: '22', bemerkungen: 'Nachmessen' })
     const t = tableWith(buildDocDefinition(p), 'Ort / Anlagenteil').table
-    const row = t.body[2].map((c: Node) => c.text)
-    expect(row).toHaveLength(17)
+    const row = t.body[3].map((c: Node) => c.text)
+    expect(row).toHaveLength(t.widths.length)
     expect(row.slice(0, 2)).toEqual(['1', 'Waschküche'])
-    expect(row.slice(7, 12)).toEqual(['0.2', '500', '', '', '300'])
-    expect(row.slice(14, 16)).toEqual(['30', '22'])
-    expect(row[16]).toBe('')
+    expect(row.slice(7, 13)).toEqual(['0.2', '500\n0,1', '310', '300', '290', '280'])
+    expect(row.slice(15, 17)).toEqual(['30', '22'])
+    expect(row[17]).toBe('Nachmessen')
   })
 
   it('lists all 25 Stromkreise, the first ones on page 1 and the rest in a table on a new page', () => {
@@ -108,13 +110,13 @@ describe('buildDocDefinition', () => {
     const [first, rest, ...more] = tables(buildDocDefinition(p))
     expect(more).toHaveLength(0)
     expect(first!.pageBreak).toBeUndefined()
-    expect(first!.table.body).toHaveLength(2 + STROMKREISE_AUF_SEITE_1)
+    expect(first!.table.body).toHaveLength(3 + STROMKREISE_AUF_SEITE_1)
     expect(rest!.pageBreak).toBe('before')
-    expect(rest!.table.headerRows).toBe(2)
-    expect(rest!.table.body).toHaveLength(2 + 25 - STROMKREISE_AUF_SEITE_1)
+    expect(rest!.table.headerRows).toBe(3)
+    expect(rest!.table.body).toHaveLength(3 + 25 - STROMKREISE_AUF_SEITE_1)
     const last = rest!.table.body[rest!.table.body.length - 1].map((c: Node) => c.text)
     expect(last).toContain('Waschküche')
-    expect(last).toContain('500')
+    expect(last).toContain('500\n')
     expect(last).toContain('25')
     expect(rest!.table.body.every((r: unknown[]) => r.length === rest!.table.body[0].length)).toBe(true)
   })

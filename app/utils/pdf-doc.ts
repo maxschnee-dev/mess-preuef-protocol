@@ -74,8 +74,9 @@ function section(title: string, body: Node[] | Node, hoehe?: number): Node {
 
 // ---- Stromkreis table ------------------------------------------------------
 
-// Nr., Ort/Anlagenteil, Leitung/Kabel (3), Überstromschutz (2), Messungen (5), RCD (4), Weiteres/Bemerkungen
-const SK_WIDTHS = [32, 90, 56, 22, 26, 34, 26, 38, 30, 30, 32, 32, 26, 30, 30, 38, '*']
+// Nr., Ort/Anlagenteil, Leitung/Kabel (3), Überstromschutz (2), Messungen (6: Schutzleiter, R_ISO/I_Leck, I_K L-PE und L-N je Anfang/Ende), RCD (4), Weiteres/Bemerkungen
+const SK_WIDTHS = [32, 90, 56, 22, 26, 34, 26, 38, 34, 30, 30, 30, 30, 26, 30, 30, 38, '*']
+const KOPFZEILEN = 3
 
 function cell(text: string, extra: Node = {}): Node {
   return { text, style: 'cell', ...extra }
@@ -100,32 +101,40 @@ function stromkreisRow(s: Stromkreis): Node[] {
     cell(s.nr, mitte), cell(s.bezeichnung), cell(s.leitungArtTyp),
     cell(s.leiterAnzahl, mitte), cell(s.leiterQuerschnitt, mitte),
     cell(ueberstromschutzArt(s), mitte), cell(s.ueberstromschutzIn, mitte),
-    cell(s.schutzleiter, mitte), cell(s.rIso, mitte), cell(s.iLeck, mitte), cell(s.ikAnfang, mitte), cell(s.ikEnde, mitte),
+    cell(s.schutzleiter, mitte),
+    cell(s.rIso || s.iLeck ? `${s.rIso}\n${s.iLeck}` : '', mitte), // R_ISO above I_Leck in one column
+    cell(s.ikLpeAnfang, mitte), cell(s.ikLpeEnde, mitte), cell(s.ikLnAnfang, mitte), cell(s.ikLnEnde, mitte),
     cell(s.rcdIn, mitte), cell(rcdArt(s), mitte), cell(s.rcdIdn, mitte), cell(s.ausloesezeit, mitte),
-    cell(''), // Weiteres/Bemerkungen: filled per Stromkreis by #22
+    cell(s.bemerkungen),
   ]
 }
 
-/** Two header rows in the column order of the template, then one row per Stromkreis. */
+/** Three header rows (group, column, L-PE/L-N sub-column) in the order of the template, then one row per Stromkreis. */
 function stromkreisTable(list: Stromkreis[], extra: Node = {}): Node {
   const span = (text: string, n: number, style: Node = {}): Node[] => [
     headCell(text, { colSpan: n, ...style }), ...Array.from({ length: n - 1 }, () => ({})),
   ]
+  const hoch = (text: string): Node => headCell(text, { rowSpan: 2 })
   const row1: Node[] = [
-    headCell('Stromkreis Nr.', { rowSpan: 2 }), headCell('Ort / Anlagenteil', { rowSpan: 2 }),
+    headCell('Stromkreis Nr.', { rowSpan: 3 }), headCell('Ort / Anlagenteil', { rowSpan: 3 }),
     ...span('Leitung / Kabel', 3), ...span('Überstromschutz-Einrichtungen', 2),
-    ...span('Messungen (gemessener Wert)', 5), ...span('Fehlerstromschutz-Einrichtungen (RCD)', 4),
-    headCell('Weiteres / Bemerkungen', { rowSpan: 2 }),
+    ...span('Messungen (gemessener Wert)', 6), ...span('Fehlerstromschutz-Einrichtungen (RCD)', 4),
+    headCell('Weiteres / Bemerkungen', { rowSpan: 3 }),
   ]
   const row2: Node[] = [
-    {}, {}, headCell('Art / Typ'), headCell('Anz.'), headCell('mm²'),
-    headCell('Art'), headCell('I_N [A]'),
-    headCell('Schutzleiter [Ω]'), headCell('R_ISO [MΩ]'), headCell('I_Leck [mA]'), headCell('I_K Anfang [A]'), headCell('I_K Ende [A]'),
-    headCell('I_N [A]'), headCell('Art'), headCell('I_ΔN [mA]'), headCell('Auslösezeit [ms]'),
+    {}, {}, hoch('Art / Typ'), hoch('Anz.'), hoch('mm²'),
+    hoch('Art'), hoch('I_N [A]'),
+    hoch('Schutzleiter [Ω]'), hoch('R_ISO [MΩ] / I_Leck [mA]'), ...span('I_K L-PE [A]', 2), ...span('I_K L-N [A]', 2),
+    hoch('I_N [A]'), hoch('Art'), hoch('I_ΔN [mA]'), hoch('Auslösezeit [ms]'),
     {},
   ]
+  const row3: Node[] = [
+    ...Array.from({ length: 9 }, () => ({})),
+    headCell('Anfang'), headCell('Ende'), headCell('Anfang'), headCell('Ende'),
+    ...Array.from({ length: 5 }, () => ({})),
+  ]
   return {
-    table: { headerRows: 2, dontBreakRows: true, widths: SK_WIDTHS, body: [row1, row2, ...list.map(stromkreisRow)] },
+    table: { headerRows: KOPFZEILEN, dontBreakRows: true, widths: SK_WIDTHS, body: [row1, row2, row3, ...list.map(stromkreisRow)] },
     layout: { ...boxLayout, paddingLeft: () => 2, paddingRight: () => 2 },
     ...extra,
   }
@@ -207,7 +216,7 @@ const LEGENDE: [string, string][] = [
   ['Schutzleiter', 'Leitfähigkeit / Durchgang des Schutzleiters in Ω (spannungsfrei gemessen)'],
   ['R_ISO', 'Isolationswiderstand in MΩ (spannungsfrei gemessen)'],
   ['I_Leck', 'Ableitstrom in mA'],
-  ['I_K Anfang / Ende', 'Kurzschlussstrom am Anfang bzw. Ende des Stromkreises in A (unter Spannung gemessen)'],
+  ['I_K L-PE / L-N', 'Kurzschlussstrom am Anfang bzw. Ende des Stromkreises in A, je zwischen Leiter und Schutzleiter (L-PE) und zwischen Leiter und Neutralleiter (L-N); unter Spannung gemessen'],
   ['Auslösezeit', 'Auslösezeit des RCD in ms (unter Spannung gemessen)'],
 ]
 

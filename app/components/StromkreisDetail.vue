@@ -76,5 +76,14 @@ const pruefungFuer = (key: string) => (isPruefFeldKey(key) ? pruefungen.value[ke
         />
       </div>
     </section>
+    <UFormField label="Bemerkungen">
+      <UTextarea
+        :model-value="stromkreis.bemerkungen"
+        :rows="3"
+        class="w-full"
+        :aria-label="`Bemerkungen, Stromkreis ${stromkreis.nr}`"
+        @update:model-value="emit('update', { bemerkungen: String($event ?? '') })"
+      />
+    </UFormField>
   </div>
 </template>

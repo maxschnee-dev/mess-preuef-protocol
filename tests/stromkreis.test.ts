@@ -14,7 +14,7 @@ describe('addStromkreis', () => {
     expect(two[1]!.nr).toBe('2')
     expect(two[1]!.id).not.toBe(two[0]!.id)
     expect(two[1]).toMatchObject({
-      bezeichnung: '', ueberstromschutzArt: '', rcdArt: '', schutzleiter: '', rIso: '', ikAnfang: '', ikEnde: '', ausloesezeit: '',
+      bezeichnung: '', ueberstromschutzArt: '', rcdArt: '', schutzleiter: '', rIso: '', ikLpeAnfang: '', ikLpeEnde: '', ikLnAnfang: '', ikLnEnde: '', ausloesezeit: '', bemerkungen: '',
     })
   })
 
@@ -62,7 +62,7 @@ describe('copyPrevious', () => {
     list = updateStromkreis(list, list[0]!.id, {
       bezeichnung: 'Steckdosen Küche', leitungArtTyp: 'NYM', leiterAnzahl: '3', leiterQuerschnitt: '1.5',
       ueberstromschutzArt: 'LS-B', ueberstromschutzIn: '16', rcdIn: '40', rcdArt: 'A', rcdIdn: '30',
-      schutzleiter: '0.2', rIso: '500', iLeck: '0.1', ikAnfang: '300', ikEnde: '260', ausloesezeit: '20',
+      schutzleiter: '0.2', rIso: '500', iLeck: '0.1', ikLpeAnfang: '300', ikLpeEnde: '260', ikLnAnfang: '310', ikLnEnde: '270', ausloesezeit: '20', bemerkungen: 'Sicherung wackelt',
     })
     const next = copyPrevious(list)
     const copy = next[1]!
@@ -73,7 +73,7 @@ describe('copyPrevious', () => {
       bezeichnung: 'Steckdosen Küche', leitungArtTyp: 'NYM', leiterAnzahl: '3', leiterQuerschnitt: '1.5',
       ueberstromschutzArt: 'LS-B', ueberstromschutzIn: '16', rcdIn: '40', rcdArt: 'A', rcdIdn: '30',
     })
-    expect(copy).toMatchObject({ schutzleiter: '', rIso: '', iLeck: '', ikAnfang: '', ikEnde: '', ausloesezeit: '' })
+    expect(copy).toMatchObject({ schutzleiter: '', rIso: '', iLeck: '', ikLpeAnfang: '', ikLpeEnde: '', ikLnAnfang: '', ikLnEnde: '', ausloesezeit: '', bemerkungen: '' })
   })
   it('adds an empty Stromkreis when there is none to copy', () => {
     expect(copyPrevious([])).toHaveLength(1)
